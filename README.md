@@ -4,11 +4,19 @@
 
 ## Summary
 
- AgileREST is perfect for Software Factories. 
+ AgileREST is perfect for Software Factories.
+ 
  It automatically builds softwares without human intervention in terms of programming code.
+ 
+## Technical informations
+
+ * Built on top of Mojolicious ( http://mojolicio.us/ )
+ * Fully MVC design
+ * PostgreSQL, Oracle and MS SQL Server support
+ * 
 
 ## Automatically Generated Resources
 
   * Database model
-  * Client side Interface
-  * REST end point
+  * Client side interfaces
+  * REST end points
