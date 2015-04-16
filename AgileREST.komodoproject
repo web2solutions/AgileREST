@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Komodo Project File - DO NOT EDIT -->
 <project id="68d8379b-6927-9048-9673-285628aea8c3" kpf_version="5" name="AgileREST.komodoproject">
+<preference-set idref="68d8379b-6927-9048-9673-285628aea8c3" id="project" preftype="project">
+  <string id="perlDefaultInterpreter">/Users/eduardoalmeida/perl5/perlbrew/perls/perl-5.20.1/bin/perl</string>
+  <string id="perlExtraPaths">/Users/eduardoalmeida/perl5/perlbrew/perls/perl-5.20.1/lib/site_perl/5.20.1:/Users/eduardoalmeida/perl5/perlbrew/perls/perl-5.20.1/lib/5.20.1</string>
+</preference-set>
 </project>

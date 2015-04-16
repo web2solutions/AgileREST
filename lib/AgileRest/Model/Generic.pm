@@ -236,8 +236,8 @@ sub get_collection
 	#}
 
 
-	$logger->debug( '======> Built SQL string' );
-	$logger->debug( $strSQL );
+	#$logger->debug( '======> Built SQL string' );
+	#$logger->debug( $strSQL );
 
 
 	$sth = $dbh->prepare( $strSQL, );

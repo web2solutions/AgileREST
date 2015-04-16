@@ -24,8 +24,8 @@ sub get {
   my $API = $self->API;
   my $logger = $self->logger;
   my $transaction = $self->tx;
-  my $remote_address = $transaction->remote_address;
-  my $port = $transaction->remote_port;
+  #my $remote_address = $transaction->remote_address;
+  #my $port = $transaction->remote_port;
 
   #$logger->debug('Not sure what is happening here');
 
@@ -50,25 +50,8 @@ sub get {
   };
 
 
-  $self->res->headers->access_control_allow_origin('*');
 
-  #$self->res->headers->allow('GET, POST, PUT, DELETE, OPTIONS');
-
-  $self->res->headers->vary('Accept')->append(Vary => 'Accept-Encoding')->to_string;;
-
-  $self->res->headers->accept_charset('UTF-8');
-
-  $self->cache_control->no_caching;
-
-  $self->res->headers->add('Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS');
-  $self->res->headers->add('Access-Control-Max-Age' => 1728000);
-  $self->res->headers->add('X-Content-Type-Options' => 'nosniff');
-  $self->res->headers->add('X-FRAME-OPTIONS' => 'DENY');
-  $self->res->headers->add('X-Server-Time' => time);
-  $self->res->headers->add('X-XSS-Protection' => '1; mode=block');
-  $self->res->headers->add('X-Powered-By' => 'Perl - Mojolicious');
-
-  #my @records = $model->get_collection( $conf );
+  $self->expose_default_headers;
 
   #$self->respond_to(
   #  json => {
@@ -87,6 +70,8 @@ sub get {
   $self->on(finish => sub {
     my $c = shift;
     $c->app->log->debug('We are done');
+    my $logger = $c->logger;
+    $logger->debug( '======> End of transaction.');
   });
 }
 
