@@ -1,15 +1,10 @@
 package AgileRest::Model::Generic;
-
 use Moo;
-
-#use utf8;
-
 use Encode qw( encode decode );
-#use Deep::Encode;
-
+use Data::Dump qw(dump);
+use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
 use Mojo::JSON qw(decode_json encode_json from_json to_json);
-#use Data::Dump qw(dump);
-
+use JSON;
 
 has 'API' => (
 	is      => 'rw',
@@ -39,14 +34,6 @@ has 'logger' => (
 	default => 0,
 	required => 0
 );
-
-has 'controller' => (
-	is      => 'rw',
-	#isa     => 'Str',
-	#default => 0,
-	required => 1
-);
-
 
 has 'default_columns' => (
 	is      => 'rw',
@@ -109,17 +96,13 @@ sub table_data
 }
 
 
-sub get_collection
+sub list
 {
 	my $self = shift;
 	my $conf = shift;
-
 	my $logger = $self->logger;
 
-	#$self->API->fail( $self->controller, ' xxxxxxxxxxxxxx ' );
-
 	# read conf or assume defaults
-
 	my $columns = $conf->{columns} || $self->default_columns;
 	my $filterstr = $conf->{filter} || '{}';
 	my $orderstr = $conf->{order} || '{}';
@@ -160,24 +143,35 @@ sub get_collection
 		}
 		else
 		{
-			$self->API->fail( $self->controller, $relationalColumn . '  is missing on url' )
+			return { error => $relationalColumn . '  is missing on url' };
 		}
 	}
 
 	# ------ Filtering and Ordering -------------------
+
+
+	$logger->debug( '======> filtering hash' );
+	$logger->debug( $filterstr );
 
 	my $filters =  from_json( $filterstr );
 	my $sql_filters = "";
 	$filter_operator=~ s/[^wd.-]+//;
 
 	my %filters = %{ $filters };
+
+
+	$logger->debug( dump( %filters ) );
+
 	foreach my $key (%filters) {
-	if ( defined( $filters{$key} ) ) {
+			if ( defined( $filters{$key} ) ) {
+
+				$logger->debug( $key );
+
 					my $string = $filters{$key};
 					$string=~ s/'//g;
 					my $column = $key;
-					$column=~ s/[^wd.-]+//;
-					$sql_filters = $sql_filters . " " . $column . " LIKE '%" . $string . "%'  ". $filter_operator ."  ";
+					#$column=~ s/[^wd.-]+//;
+					$sql_filters = $sql_filters . " " . $column . " ILIKE '%" . $string . "%'  ". $filter_operator ."  ";
 			}
 	}
 
@@ -196,9 +190,9 @@ sub get_collection
 	if ( defined( $order->{orderby} ) && defined( $order->{direction} ) )
 	{
 			my $column = $order->{orderby};
-			$column=~ s/[^wd.-]+//;
+			#$column=~ s/[^wd.-]+//;
 			my $direction = $order->{direction};
-			$direction=~ s/[^wd.-]+//;
+			#$direction=~ s/[^wd.-]+//;
 			$sql_ordering = ' ORDER BY "' . $column . '" '. $direction ;
 	}
 	# ------ Filtering and Ordering -------------------
@@ -212,14 +206,13 @@ sub get_collection
 
 	my $totalCount = 0;
 	my $sth = $dbh->prepare( 'SELECT COUNT('.$self->primary_key.') as total_count FROM '.$tableName.' WHERE '.$strSQLstartWhere.' ' . $sql_filters . ';', );
-	$sth->execute() or $self->API->fail( $self->controller, $sth->errstr );
+	$sth->execute() or return { error => $sth->errstr };
 	while ( my $record = $sth->fetchrow_hashref())
 	{
 			$totalCount = $record->{"total_count"};
 	}
 
-
-	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.' '. $sql_ordering . ' ';
+	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.'  WHERE '.$strSQLstartWhere.' ' . $sql_filters . ' '. $sql_ordering . ' ';
 
 	# if smart rendering
 	#if($isSmartRendering)
@@ -241,7 +234,7 @@ sub get_collection
 
 
 	$sth = $dbh->prepare( $strSQL, );
-	$sth->execute() or $self->API->fail( $self->controller, $sth->errstr . ' ----------- '.$strSQL);
+	$sth->execute() or return { error => $sth->errstr . ' ----------- '.$strSQL };
 
 	my @records_basic;
 	my @records_native;
@@ -305,16 +298,15 @@ sub get_collection
       columns => $self->columns,
 			status => 'success',
 			response => 'Succcess',
-			#''.$self->collection.'' => [@records_collection],
-			#grid_json_model => $grid_json_model,
-			#rows =>  => [  ( $grid_json_model eq 'basic' ) ? @records_basic : @records_native],
-			sql =>  $strSQL,
-			sql_filters => $sql_filters,
-			sql_ordering => $sql_ordering,
 			total_count => $totalCount,
-			pos => $posStart,
-			h => decode('UTF-8', 'éó')
+			pos => $posStart
 	};
+
+	if ( $API->branch ne 'production') {
+      $response->{sql} = $strSQL;
+      $response->{sql_filters} = $sql_filters;
+      $response->{sql_ordering} = $sql_ordering;
+  }
 
 	if ($is_dhtmlx_grid) {
 		$response->{rows} = [  ( $grid_json_model eq 'basic' ) ? @records_basic : @records_native];
@@ -325,11 +317,130 @@ sub get_collection
 		$response->{$self->collection} =  [@records_collection];
 	}
 
+	return $response || {};
+}
 
-	return $response;
+
+sub read
+{
+	my $self = shift;
+	my $conf = shift;
+	my $logger = $self->logger;
+	my $API = $self->API;
+
+	# read conf or assume defaults
+	my $columns = $conf->{columns} || $self->default_columns;
+	my $str_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
+	$str_id=~ s/'//g;
+	my $primaryKey = $self->primary_key;
+
+	my $tableName = $self->table_prefix . $self->collection;
+	my $defaultColumns = $self->default_columns;
+	my $strColumns = $columns || $defaultColumns;
+	$strColumns=~ s/'//g;
+	my @columns = split(/,/, $strColumns);
+
+	my $dbh = $API->dbh;
+	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.' WHERE '.$primaryKey.' = ?';
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( $str_id ) or return { error => $sth->errstr . ' ----------- '.$strSQL };
+
+	if ( $sth->rows == 0 ) {
+			return {
+				error => 'resource_not_found',
+				strSQL => $strSQL,
+				primaryKey => $primaryKey,
+        str_id => $str_id
+			}
+	}
+
+	my $response = {
+				 status => 'success',
+				 response => 'Succcess',
+				 hash => $sth->fetchrow_hashref(),
+				 #sql =>  $strSQL
+	};
+
+	if ( $API->branch ne 'production') {
+      $response->{sql} = $strSQL;
+  }
+
+	return $response || {};
+}
 
 
+sub create
+{
+	my $self = shift;
+	my $conf = shift;
 
+	my $logger = $self->logger;
+	my $API = $self->API;
+	my $primaryKey = $self->primary_key;
+	my $columns = $conf->{columns} || $self->default_columns;
+
+	my $tableName = $self->table_prefix . $self->collection;
+	my $defaultColumns = $self->default_columns;
+	my $strColumns = $columns || $defaultColumns;
+
+	my $hashStr = $conf->{hash} || '{}';
+	my $json_bytes = encode('UTF-8', $hashStr);
+	my $hash = JSON->new->utf8->decode($json_bytes) or return { error => "unable to decode"};
+	#my $hash =  from_json( $hashStr );
+	my $sql_columns = "";
+	my $sql_placeholders = "";
+	my @sql_values;
+
+	my %hash = %{ $hash };
+
+	my $dbh = $API->dbh;
+
+	foreach my $key (%hash)
+	{
+			if ( defined( $key ) )
+			{
+					if ( defined( $hash{$key} ) )
+					{
+							if ( index($defaultColumns, $key) != -1 )
+							{
+									if ( $key ne $primaryKey) {
+											if ( index($sql_columns, '"' .$key.'"') < 0 )
+											{
+													$sql_columns = $sql_columns .'"' .$key.'", ';
+													$sql_placeholders  = $sql_placeholders . '?, ';
+													push @sql_values, $hash{$key};
+											}
+									}
+							}
+					}
+			}
+	}
+
+	if( length($sql_columns) < 2)
+	{
+		return { error => 'please provide a hash of properties' }
+	}
+
+	my $strSQL = 'INSERT INTO
+		'.$tableName.'(' . substr($sql_columns, 0, -2) . ')
+		VALUES(' . substr($sql_placeholders, 0, -2) . ')
+		RETURNING '.$primaryKey.';
+	';
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( @sql_values ) or return { error => $sth->errstr . " --------- ".$strSQL };
+	my $record_id = 0;
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+			$record_id = $record->{$primaryKey};
+	}
+
+	return {
+			status => 'success',
+			response => 'Item '.$record_id.' added on ' . $self->collection,
+			sql => $strSQL,
+			''.$primaryKey.'' => $record_id,
+			place_holders_dump => dump(@sql_values)
+	};
 }
 
 

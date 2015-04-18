@@ -1,6 +1,7 @@
 package AgileRest;
 use Mojo::Base 'Mojolicious';
 use Mojo::Log;
+use Mojo::Redis2;
 
 use AgileRest::API;
 
@@ -10,11 +11,26 @@ sub startup {
   my $app = shift;
   #my $self = shift;
 
+  # >>>>>>>============= PLUGINS =============<<<<<<<<<<
   # Documentation browser under "/perldoc"
   $app->plugin('PODRenderer');
 
   # http://search.cpan.org/~graf/Mojolicious-Plugin-AccessLog-0.006/lib/Mojolicious/Plugin/AccessLog.pm
   #$app->plugin(AccessLog => log => '/var/log/mojo/access.log');
+
+
+  $app->plugin('JSON::XS');
+
+  $app->plugin('DefaultHelpers');
+
+  $app->plugin( 'Mojolicious::Plugin::PDFRenderer', {
+            javascript_delay => 1000
+            , load_error_handling => 'ignore'
+            , page_height => '5in'
+            , page_width => '10.5in'
+            # options that would otherwise be passed to PDF::WebKit,
+            # see `wkhtmltopdf --extended-help` for more (replace dashes w/ underscores)
+  } );
 
   # set db helper via database plugin
   $app->plugin('database', {
@@ -27,6 +43,35 @@ sub startup {
     }
   );
 
+  # >>>>>>>============= PLUGINS =============<<<<<<<<<<
+
+
+  # force respond application/json; charset=utf-8 when JSON
+  $app->types->type( json => 'application/json; charset=utf-8' );
+
+  # create API object
+  my $API = AgileRest::API->new( dbh => $app->db );
+  $app->helper(
+      API => sub{
+        return $API;
+      }
+  );
+
+  # >>>>>>>============= HELPERS =============<<<<<<<<<<
+
+
+  my $redis = Mojo::Redis2->new;
+
+
+  # helper for disconnect db
+  $app->helper(
+      redis => sub{
+        return $redis;
+      }
+  );
+
+
+
   # helper for disconnect db
   $app->helper(
       db_disconnect => sub{
@@ -36,27 +81,71 @@ sub startup {
       }
   );
 
-  $app->plugin('DefaultHelpers');
-
-  $app->types->type( json => 'application/json; charset=utf-8' );
-
-  my $API = AgileRest::API->new( dbh => $app->db );
   $app->helper(
-      API => sub{
-        return $API;
-      }
+    'unauthorized' => sub{
+      my $c = shift;
+      my $err_msg = shift;
+      my $logger = $c->logger;
+      my $origin = $c->req->headers->header('Origin') || '*';
+      $c->res->headers->header('Access-Control-Allow-Origin'=> $origin);
+      $c = $c->render(
+        json => {
+          status => 'err', response =>  'Unauthorized: '. $err_msg
+        },
+        any => '',
+        status => 401
+      );
+    }
   );
 
-  # Log to STDERR
+  $app->helper(
+    'fail' => sub{
+      my $c = shift;
+      my $err_msg = shift || ' unknow error';
+      my $logger = $c->logger;
+      $logger->debug( 'inside fail' );
+      my $origin = $c->req->headers->header('Origin') || '*';
+      $c->res->headers->header('Access-Control-Allow-Origin'=> $origin);
+      $c = $c->render(
+        json => {
+          status => 'err', response =>  'Server error: '. $err_msg
+        },
+        any => '',
+        status => 500
+      );
+    }
+  );
+
+
+  $app->helper(
+    'resource_not_found' => sub{
+      my $c = shift;
+      my $strSQL = shift;
+      my $primaryKey = shift;
+      my $str_id = shift;
+      my $logger = $c->logger;
+      $logger->debug( 'inside resource_not_found' );
+      $c = $c->render(
+        json => {
+          status => 'success',
+          response => 'resource not found.',
+          sql => $strSQL,
+          ''.$primaryKey.'' => $str_id
+        },
+        #any => '',
+        status => 404
+      );
+    }
+  );
+
+
+  # looger helper
   my $logger = Mojo::Log->new;
-  # Log messages
-  #$log->debug('Not sure what is happening here');
   $app->helper(
       logger => sub{
         return $logger;
       }
   );
-
 
   $app->helper(
     'cache_control.no_caching' => sub{
@@ -64,24 +153,12 @@ sub startup {
       $c->res->headers->cache_control('private, max-age=0, no-cache');
     }
   );
-
-
   $app->helper(
     'cache_control.five_minutes' => sub{
       my $c = shift;
       $c->res->headers->cache_control('public, max-age=300');
     }
   );
-
-
-
-  $app->helper(
-    'Access-Control-Allow-Methods' => sub{
-      my $c = shift;
-      $c->res->headers->cache_control('public, max-age=300');
-    }
-  );
-
 
   $app->helper(
     'expose_default_headers' => sub{
@@ -106,13 +183,13 @@ sub startup {
 
 
       $logger->debug( '======> url: ' . $url );
-      $logger->debug( '======> host: ' . $host );
-      $logger->debug( '======> info: ' . $info );
-      $logger->debug( '======> path: ' . $path );
-      $logger->debug( '======> remote Address: ' . $remote_address );
-      $logger->debug( '======> remote Port: ' . $port );
-      $logger->debug( '======> PSGI version: ' . $version );
-      $logger->debug( $origin );
+      #$logger->debug( '======> host: ' . $host );
+      #$logger->debug( '======> info: ' . $info );
+      #$logger->debug( '======> path: ' . $path );
+      #$logger->debug( '======> remote Address: ' . $remote_address );
+      #$logger->debug( '======> remote Port: ' . $port );
+      #$logger->debug( '======> PSGI version: ' . $version );
+      #$logger->debug( $origin );
       #$logger->debug( $c->dumper( $req->env ) );
 
 
@@ -135,6 +212,39 @@ sub startup {
     }
   );
 
+  # >>>>>>>============= HELPERS =============<<<<<<<<<<
+
+
+
+  # >>>>>>>============= ROUTES =============<<<<<<<<<<
+
+
+    # >>>>>>>===== routes events ======<<<<<<<<<<
+  $app->hook(before_dispatch => sub {
+    my $c = shift;
+    my $API = $c->API;
+    my $logger = $c->logger;
+    #$logger->debug( $c->dumper( $c->req->url->path ) );
+    if ( $c->req->url->path eq '/auth.json' )
+    {
+
+    }
+    else
+    {
+      my $access_granted_message = $API->check_authorization( $c );
+      if ( $access_granted_message ne 'granted' )
+      {
+        #return $c->unauthorized( $access_granted_message );
+      }
+    }
+  });
+
+  $app->hook(after_static => sub {
+    my $c = shift;
+    $c->res->headers->cache_control('max-age=3600, must-revalidate');
+  });
+    # >>>>>>>===== routes events ======<<<<<<<<<<
+
 
   # Router
   my $routes = $app->routes;
@@ -154,16 +264,37 @@ sub startup {
 
 
   # Normal route to controller
-  $routes->get('/pessoas')->to(
+  $routes->post('/auth')->to(
+    controller => 'auth',
+    action => 'auth'
+  );
+
+  # Normal route to controller
+  $routes->get('/persons')->to(
     controller => 'generic',
-    action => 'get',
-    collection => 'pessoas',
-    item => 'pessoa'
+    action => 'list',
+    collection => 'persons',
+    item => 'person'
+  );
+
+  $routes->post('/persons')->to(
+    controller => 'generic',
+    action => 'create',
+    collection => 'persons',
+    item => 'person'
+  );
+
+
+  $routes->get('/persons/:person_id')->to(
+    controller => 'generic',
+    action => 'read',
+    collection => 'persons',
+    item => 'person'
   );
 
 
 
-
+   # >>>>>>>============= ROUTES =============<<<<<<<<<<
 }
 
 1;
