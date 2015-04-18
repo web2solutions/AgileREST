@@ -46,6 +46,7 @@ sub startup {
   # >>>>>>>============= PLUGINS =============<<<<<<<<<<
 
 
+
   # force respond application/json; charset=utf-8 when JSON
   $app->types->type( json => 'application/json; charset=utf-8' );
 
@@ -57,20 +58,15 @@ sub startup {
       }
   );
 
+
   # >>>>>>>============= HELPERS =============<<<<<<<<<<
 
-
   my $redis = Mojo::Redis2->new;
-
-
-  # helper for disconnect db
   $app->helper(
       redis => sub{
         return $redis;
       }
   );
-
-
 
   # helper for disconnect db
   $app->helper(
@@ -263,6 +259,13 @@ sub startup {
   });
 
 
+
+  # Normal route to controller
+  $routes->post('/github_hooks')->to(
+    controller => 'github',
+    action => 'hook'
+  );
+
   # Normal route to controller
   $routes->post('/auth')->to(
     controller => 'auth',
@@ -284,10 +287,23 @@ sub startup {
     item => 'person'
   );
 
-
   $routes->get('/persons/:person_id')->to(
     controller => 'generic',
     action => 'read',
+    collection => 'persons',
+    item => 'person'
+  );
+
+  $routes->put('/persons/:person_id')->to(
+    controller => 'generic',
+    action => 'update',
+    collection => 'persons',
+    item => 'person'
+  );
+
+  $routes->delete('/persons/:person_id')->to(
+    controller => 'generic',
+    action => 'delete',
     collection => 'persons',
     item => 'person'
   );

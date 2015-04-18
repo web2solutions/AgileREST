@@ -131,10 +131,55 @@ sub read {
 
 
 sub create {
- my $self = shift;
-
+  my $self = shift;
   my $API = $self->API;
+  my $access_granted_message = $API->check_authorization( $self );
+  if ( $access_granted_message ne 'granted' )
+  {
+    return $self->unauthorized( $access_granted_message );
+  }
 
+  my $app = $self->app;
+  my $logger = $self->logger;
+  my $transaction = $self->tx;
+  my $req = $transaction->req;
+  $API->branch( $req->headers->header('X-branch') || 'test' );
+
+  my $model = AgileRest::Model::Generic->new(
+    API => $API,
+    item => $self->stash('item'),
+    collection => $self->stash('collection'),
+    logger => $logger
+  );
+
+  #$logger->debug( $self->stash( 'item_id' ));
+
+  my $item_data = $model->create( {
+    columns => $self->param('columns')
+  } );
+
+  if ( defined( $item_data->{error} ) )
+  {
+    return $self->fail( $item_data->{error} );
+  }
+
+  $self->expose_default_headers;
+  $self->render(
+    json => $item_data
+    ,status => 200
+  );
+
+  # Do something after the transaction has been finished
+  $self->on(finish => sub {
+    my $c = shift;
+    $API->trackAccessLog( $c );
+  });
+}
+
+
+sub update {
+  my $self = shift;
+  my $API = $self->API;
   #my $access_granted_message = $API->check_authorization( $self );
   #if ( $access_granted_message ne 'granted' )
   #{
@@ -154,14 +199,60 @@ sub create {
     logger => $logger
   );
 
+  #$logger->debug( $self->stash( 'item_id' ));
 
-  $logger->debug( $self->stash( 'item_id' ));
-
-
-  my $item_data = $model->create( {
+  my $item_data = $model->update( {
     columns => $self->param('columns'),
-    item_id => $self->stash( 'item_id' )
+    item_id => $self->stash( $model->primary_key ),
+    hash => '{}'
+  } );
 
+  if ( defined( $item_data->{error} ) )
+  {
+    return $self->fail( $item_data->{error} );
+  }
+
+  $self->expose_default_headers;
+  $self->render(
+    json => $item_data
+    ,status => 200
+  );
+
+  # Do something after the transaction has been finished
+  $self->on(finish => sub {
+    my $c = shift;
+    $API->trackAccessLog( $c );
+  });
+}
+
+
+sub delete {
+ my $self = shift;
+  my $API = $self->API;
+  #my $access_granted_message = $API->check_authorization( $self );
+  #if ( $access_granted_message ne 'granted' )
+  #{
+  #  return $self->unauthorized( $access_granted_message );
+  #}
+
+  my $app = $self->app;
+  my $logger = $self->logger;
+  my $transaction = $self->tx;
+  my $req = $transaction->req;
+  $API->branch( $req->headers->header('X-branch') || 'test' );
+
+  my $model = AgileRest::Model::Generic->new(
+    API => $API,
+    item => $self->stash('item'),
+    collection => $self->stash('collection'),
+    logger => $logger
+  );
+
+  #$logger->debug( $self->stash( 'item_id' ));
+
+  my $item_data = $model->del( {
+    columns => $self->param('columns'),
+    item_id => $self->stash( $model->primary_key )
   } );
 
   if ( defined( $item_data->{error} ) )
@@ -189,22 +280,7 @@ sub create {
   $self->on(finish => sub {
     my $c = shift;
     $API->trackAccessLog( $c );
-    #$c->app->log->debug('We are done');
-    #my $logger = $c->logger;
-    #$logger->debug( '======> End of transaction.');
   });
-}
-
-
-sub update {
-  my $self = shift;
-
-}
-
-
-sub delete {
-  my $self = shift;
-
 }
 
 

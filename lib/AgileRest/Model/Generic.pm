@@ -2,9 +2,9 @@ package AgileRest::Model::Generic;
 use Moo;
 use Encode qw( encode decode );
 use Data::Dump qw(dump);
-use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
-use Mojo::JSON qw(decode_json encode_json from_json to_json);
-use JSON;
+#use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
+#use Mojo::JSON qw(decode_json encode_json from_json to_json);
+use JSON qw(decode_json encode_json from_json to_json);
 
 has 'API' => (
 	is      => 'rw',
@@ -133,7 +133,7 @@ sub list
 	my $strColumns = $columns || $defaultColumns;
 	$strColumns=~ s/'//g;
 	my @columns = split(/,/, $strColumns);
-	#$strColumns = MAP::API->normalizeColumnNames( $strColumns, $defaultColumns );
+	$strColumns = MAP::API->normalizeColumnNames( $strColumns, $defaultColumns );
 
 
 	if ( defined( $relationalColumn ) )
@@ -443,5 +443,128 @@ sub create
 	};
 }
 
+
+
+sub update{
+	my $self = shift;
+	my $conf = shift;
+	my $logger = $self->logger;
+	my $API = $self->API;
+
+	# read conf or assume defaults
+	my $columns = $conf->{columns} || $self->default_columns;
+	my $str_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
+	$str_id=~ s/'//g;
+	my $primaryKey = $self->primary_key;
+
+	my $tableName = $self->table_prefix . $self->collection;
+	my $defaultColumns = $self->default_columns;
+	my $strColumns = $columns || $defaultColumns;
+	$strColumns=~ s/'//g;
+	my @columns = split(/,/, $strColumns);
+
+
+	my $item_id  = $str_id || return { error => 'id is missing on URL' };
+	$item_id=~ s/'//g;
+	#my $agency_id = request->header("X-AId") || MAP::API->fail( "please provide agency_id" );
+	#$defaultColumns = MAP::API->normalizeColumnNames( $defaultColumns, $defaultColumns );
+
+	my $hashStr = $conf->{hash} || '{}';
+	my $json_bytes = encode('UTF-8', $hashStr);
+	my $hash = JSON->new->utf8->decode($json_bytes) or return { error => 'unable to decode' };
+	#my $hash =  from_json( $hashStr );
+	my $sql_setcolumns = "";
+	my $sql_placeholders = "";
+	my @sql_values;
+
+	my %hash = %{ $hash };
+	foreach my $key (%hash)
+	{
+			if ( defined( $hash{$key} ) )
+			{
+					if ( index(MAP::API->normalizeColumnNames( $defaultColumns, $defaultColumns ), '"'.$key.'"') != -1 )
+					{
+							if ( $key ne $primaryKey) {
+									if ( index($sql_setcolumns, '"' .$key.'"') < 0 )
+									{
+											$sql_setcolumns = $sql_setcolumns .'"'. $key .'"" = ?, ';
+											push @sql_values, $hash{$key};
+									}
+							}
+					}
+			}
+	}
+
+	if( length($sql_setcolumns) < 2)
+	{
+		return { error => 'please provide a hash of properties' }
+	}
+
+	my $dbh = $API->dbh;
+	my $strSQL = 'UPDATE '.$tableName.' SET ' . substr($sql_setcolumns, 0, -2) . ' WHERE ['.$primaryKey.'] IN ('.$item_id.')';
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( @sql_values ) or MAP::API->fail( $sth->errstr . " --------- ".$strSQL . " --- " . dump(@sql_values) . " ----- " . $item_id );
+
+
+	if ( $sth->rows == 0 ) {
+			return {
+				error => 'resource_not_found',
+				strSQL => $strSQL,
+				primaryKey => $primaryKey,
+        str_id => $str_id
+			}
+	}
+
+
+	return {
+			status => 'success',
+			response => 'Item '.$str_id.' updated on ' . $self->collection,
+			sql => $strSQL,
+			''.$primaryKey.'' => $str_id,
+			place_holders_dump => dump(@sql_values)
+	};
+
+}
+
+
+sub del{
+	my $self = shift;
+	my $conf = shift;
+	my $logger = $self->logger;
+	my $API = $self->API;
+
+	# read conf or assume defaults
+	my $str_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
+	$str_id=~ s/'//g;
+	my $primaryKey = $self->primary_key;
+
+	my $tableName = $self->table_prefix . $self->collection;
+	my $item_id  = $str_id || return { error => 'id is missing on URL' };
+	$item_id=~ s/'//g;
+
+	my $dbh = $API->dbh;
+
+	my $strSQL = 'DELETE FROM '.$tableName.' WHERE '.$primaryKey.' IN ('.$str_id.')';
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( ) or return { error => $sth->errstr . "   ----   ". $strSQL};
+
+
+	if ( $sth->rows == 0 ) {
+			return {
+				error => 'resource_not_found',
+				strSQL => $strSQL,
+				primaryKey => $primaryKey,
+        str_id => $str_id
+			}
+	}
+
+	return {
+			status => 'success',
+			response => 'Item '.$str_id.' deleted on ' . $self->collection,
+			sql => $strSQL,
+			''.$primaryKey.'' => $str_id
+	};
+
+}
 
 1;

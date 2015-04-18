@@ -224,9 +224,8 @@ sub trackAccessLog
     });
 
     my $id = $c->redis->incr('id:api_access_log');
-    $c->redis->hmset(api_access_log=> $id => $json_document);
+    $c->redis->hmset(api_access_log => $id => $json_document);
     #$logger->debug( @{$c->redis->hmget( api_access_log => $id)}[0]  );
-
 }
 
 
