@@ -2,8 +2,14 @@ package AgileRest;
 use Mojo::Base 'Mojolicious';
 use Mojo::Log;
 use Mojo::Redis2;
-
+use Mojolicious::Plugin::TtRenderer::Engine;
 use AgileRest::API;
+
+use File::Basename 'dirname';
+use File::Spec::Functions 'catdir';
+
+# Every CPAN module needs a version
+#our $VERSION = '1.0';
 
 
 # This method will run once at server start
@@ -11,16 +17,34 @@ sub startup {
   my $app = shift;
   #my $self = shift;
 
-  # >>>>>>>============= PLUGINS =============<<<<<<<<<<
+
+  # mv public lib/AgileRest/
+  # mv templates lib/AgileRest/
+  # Switch to installable home directory
+  #$app->home->parse(catdir(dirname(__FILE__), 'MyApp'));
+
+  # Switch to installable "public" directory
+  #$app->static->paths->[0] = $self->home->rel_dir('public');
+
+  # Switch to installable "templates" directory
+  #$app->renderer->paths->[0] = $self->home->rel_dir('templates');
+
+
+
+  # >>>>>>>============= START PLUGINS =============<<<<<<<<<<
   # Documentation browser under "/perldoc"
   $app->plugin('PODRenderer');
+
+  # use config file
+  $app->plugin('Config');
 
   # http://search.cpan.org/~graf/Mojolicious-Plugin-AccessLog-0.006/lib/Mojolicious/Plugin/AccessLog.pm
   #$app->plugin(AccessLog => log => '/var/log/mojo/access.log');
 
-
+  # fast JSON parser
   $app->plugin('JSON::XS');
 
+  # add default Mojo helpers
   $app->plugin('DefaultHelpers');
 
   $app->plugin( 'Mojolicious::Plugin::PDFRenderer', {
@@ -36,14 +60,16 @@ sub startup {
   $app->plugin('database', {
       dsn      => 'dbi:Pg:dbname=juris;host=localhost',
       #host      => '10.0.0.9',
-      username => 'eduardoalmeida',
-      password => 'fuzzy24k',
-      options  => { 'pg_enable_utf8' => 1, AutoCommit => 0 },
+      username => $app->config('db_user'),
+      password => $app->config('db_password'),
+      options  => { 'pg_enable_utf8' => 1, AutoCommit => 1 },
       helper   => 'db',
     }
   );
 
-  # >>>>>>>============= PLUGINS =============<<<<<<<<<<
+
+
+  # >>>>>>>============= END PLUGINS =============<<<<<<<<<<
 
 
 
@@ -59,7 +85,8 @@ sub startup {
   );
 
 
-  # >>>>>>>============= HELPERS =============<<<<<<<<<<
+
+  # >>>>>>>============= START HELPERS =============<<<<<<<<<<
 
   my $redis = Mojo::Redis2->new;
   $app->helper(
@@ -159,14 +186,11 @@ sub startup {
   $app->helper(
     'expose_default_headers' => sub{
       my $c = shift;
-
       my $logger = $c->logger;
-
       my $transaction = $c->tx;
       my $remote_address = $transaction->remote_address;
       my $port = $transaction->remote_port;
       my $address = $transaction->original_remote_address;
-
       my $req = $transaction->req;
       my $res = $transaction->res;
       my $version = $req->env->{GATEWAY_INTERFACE} || 'unknow';
@@ -176,22 +200,7 @@ sub startup {
       my $host = $req->url->to_abs->host;
       my $path = $req->url->to_abs->path;
       my $origin = $req->headers->header('Origin') || '*';
-
-
-      $logger->debug( '======> url: ' . $url );
-      #$logger->debug( '======> host: ' . $host );
-      #$logger->debug( '======> info: ' . $info );
-      #$logger->debug( '======> path: ' . $path );
-      #$logger->debug( '======> remote Address: ' . $remote_address );
-      #$logger->debug( '======> remote Port: ' . $port );
-      #$logger->debug( '======> PSGI version: ' . $version );
-      #$logger->debug( $origin );
-      #$logger->debug( $c->dumper( $req->env ) );
-
-
       $c->res->headers->access_control_allow_origin( $origin );
-      #$self->res->headers->allow('GET, POST, PUT, DELETE, OPTIONS');
-      #$c->accepts('json');
       $c->res->headers->vary('Accept')->append(Vary => 'Accept-Encoding')->to_string;;
       $c->res->headers->accept_charset('UTF-8');
       $c->res->headers->add('Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS');
@@ -204,15 +213,28 @@ sub startup {
       # https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
       $c->res->headers->add('Access-Control-Allow-Credentials' => 'true');
       $c->cache_control->no_caching;
-
     }
   );
 
-  # >>>>>>>============= HELPERS =============<<<<<<<<<<
+  # >>>>>>>============= END HELPERS =============<<<<<<<<<<
 
 
 
-  # >>>>>>>============= ROUTES =============<<<<<<<<<<
+  # add support to template toolkit engine
+  my $tt = Mojolicious::Plugin::TtRenderer::Engine->build(
+    mojo => $app,
+    template_options => {
+      #PROCESS  => 'tpl/wrapper',
+      FILTERS  => [ ],
+      UNICODE  => 1,
+      ENCODING => 'UTF-8',
+    }
+  );
+  $app->renderer->add_handler( tt => $tt );
+
+
+
+  # >>>>>>>============= START ROUTES =============<<<<<<<<<<
 
 
     # >>>>>>>===== routes events ======<<<<<<<<<<
@@ -245,6 +267,7 @@ sub startup {
   # Router
   my $routes = $app->routes;
 
+  # add generic answer to OPTIONS request method
   $routes->options('*')->to(cb => sub {
     my $self = shift;
     my $origin = $self->req->headers->header('Origin') || '*';
@@ -258,21 +281,19 @@ sub startup {
     $self->respond_to(any => { data => '', status => 200 });
   });
 
-
-
-  # Normal route to controller
+  # github hook - notify changes on branches
   $routes->post('/github_hooks')->to(
     controller => 'github',
     action => 'hook'
   );
 
-  # Normal route to controller
+  # authentication
   $routes->post('/auth')->to(
     controller => 'auth',
     action => 'auth'
   );
 
-  # Normal route to controller
+  # ========= persons  START
   $routes->get('/persons')->to(
     controller => 'generic',
     action => 'list',
@@ -286,6 +307,7 @@ sub startup {
     collection => 'persons',
     item => 'person'
   );
+
 
   $routes->get('/persons/:person_id')->to(
     controller => 'generic',
@@ -303,14 +325,21 @@ sub startup {
 
   $routes->delete('/persons/:person_id')->to(
     controller => 'generic',
-    action => 'delete',
+    action => 'del',
     collection => 'persons',
     item => 'person'
   );
 
+  $routes->get('/persons/doc/doc')->to(
+    controller => 'generic',
+    action => 'doc',
+    collection => 'persons',
+    item => 'person'
+  );
+  # ========= persons  END
 
 
-   # >>>>>>>============= ROUTES =============<<<<<<<<<<
+   # >>>>>>>============= END ROUTES =============<<<<<<<<<<
 }
 
 1;

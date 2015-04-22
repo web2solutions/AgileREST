@@ -152,10 +152,10 @@ sub create {
     logger => $logger
   );
 
-  #$logger->debug( $self->stash( 'item_id' ));
+  my $hash = $self->param('hash') || return $self->fail( 'hash is a mandatory parameter for this end point' );
 
   my $item_data = $model->create( {
-    columns => $self->param('columns')
+    hash => $hash
   } );
 
   if ( defined( $item_data->{error} ) )
@@ -180,11 +180,11 @@ sub create {
 sub update {
   my $self = shift;
   my $API = $self->API;
-  #my $access_granted_message = $API->check_authorization( $self );
-  #if ( $access_granted_message ne 'granted' )
-  #{
-  #  return $self->unauthorized( $access_granted_message );
-  #}
+  my $access_granted_message = $API->check_authorization( $self );
+  if ( $access_granted_message ne 'granted' )
+  {
+    return $self->unauthorized( $access_granted_message );
+  }
 
   my $app = $self->app;
   my $logger = $self->logger;
@@ -199,12 +199,12 @@ sub update {
     logger => $logger
   );
 
-  #$logger->debug( $self->stash( 'item_id' ));
+  my $hash = $self->param('hash') || return $self->fail( 'hash is a mandatory parameter for this end point' );
+  my $item_id = $self->stash( $model->primary_key ) || return $self->fail( $model->primary_key. ' parameter is missing on stash' );
 
   my $item_data = $model->update( {
-    columns => $self->param('columns'),
     item_id => $self->stash( $model->primary_key ),
-    hash => '{}'
+    hash => $hash
   } );
 
   if ( defined( $item_data->{error} ) )
@@ -226,21 +226,19 @@ sub update {
 }
 
 
-sub delete {
- my $self = shift;
+sub del {
+  my $self = shift;
   my $API = $self->API;
-  #my $access_granted_message = $API->check_authorization( $self );
-  #if ( $access_granted_message ne 'granted' )
-  #{
-  #  return $self->unauthorized( $access_granted_message );
-  #}
-
+  my $access_granted_message = $API->check_authorization( $self );
+  if ( $access_granted_message ne 'granted' )
+  {
+    return $self->unauthorized( $access_granted_message );
+  }
   my $app = $self->app;
   my $logger = $self->logger;
   my $transaction = $self->tx;
   my $req = $transaction->req;
   $API->branch( $req->headers->header('X-branch') || 'test' );
-
   my $model = AgileRest::Model::Generic->new(
     API => $API,
     item => $self->stash('item'),
@@ -248,11 +246,9 @@ sub delete {
     logger => $logger
   );
 
-  #$logger->debug( $self->stash( 'item_id' ));
-
+  my $item_id = $self->stash( $model->primary_key ) || return $self->fail( $model->primary_key. ' parameter is missing on stash' );
   my $item_data = $model->del( {
-    columns => $self->param('columns'),
-    item_id => $self->stash( $model->primary_key )
+    item_id => $item_id
   } );
 
   if ( defined( $item_data->{error} ) )
@@ -283,5 +279,80 @@ sub delete {
   });
 }
 
+
+
+sub doc {
+  my $self = shift;
+  my $API = $self->API;
+  #my $access_granted_message = $API->check_authorization( $self );
+  #if ( $access_granted_message ne 'granted' )
+  #{
+  #  return $self->unauthorized( $access_granted_message );
+  #}
+
+
+
+  my $app = $self->app;
+  my $logger = $self->logger;
+
+  $logger->debug( ' inside doc ');
+
+  my $transaction = $self->tx;
+  my $req = $transaction->req;
+  $API->branch( $req->headers->header('X-branch') || 'test' );
+
+
+  my $model = AgileRest::Model::Generic->new(
+    API => $API,
+    item => $self->stash('item'),
+    collection => $self->stash('collection'),
+    logger => $logger
+  );
+
+
+  my $table_schema = $model->schema;
+  my $tableName = $model->table_prefix . $model->collection;
+
+  my $defaultColumns = '';
+  for( @{$table_schema->{columns}} )
+  {
+
+      $defaultColumns = $defaultColumns . $_->{name} . ',' if $_->{name} ne $model->primary_key;
+  }
+
+  $defaultColumns = $defaultColumns . $model->primary_key;
+
+  my @defaultColumns = split(/,/, $defaultColumns);
+
+
+
+
+  $self->render(
+    template => 'doc',
+    format => 'html',
+    handler => 'tt',
+    collectionName => $self->stash('collection'),
+    tableName => $tableName,
+    prefix => '',
+    columns => $model->columns,
+    defaultColumns => [@defaultColumns],
+    defaultColumnsStr => $defaultColumns,
+    primaryKey => $model->primary_key
+  );
+
+
+
+  #$self->expose_default_headers;
+  #$self->render(
+  #  json => $item_data
+  #  ,status => 200
+  #);
+
+  # Do something after the transaction has been finished
+  $self->on(finish => sub {
+    my $c = shift;
+    $API->trackAccessLog( $c );
+  });
+}
 
 1;

@@ -1,12 +1,12 @@
 package AgileRest::API;
 use Moo;
 
-use Mojo::Message::Response;
+#use Mojo::Message::Response;
 use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
 use Mojo::JSON qw(decode_json encode_json from_json to_json);
 
-use Crypt::Digest::SHA256 qw( sha256_hex );
-use MIME::Base64;
+#use Crypt::Digest::SHA256 qw( sha256_hex );
+#use MIME::Base64;
 
 use Data::Dump qw(dump);
 

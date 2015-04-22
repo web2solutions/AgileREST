@@ -1,0 +1,825 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=[% settings.charset %]" />
+<title>REST API</title>
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+
+<style type="text/css" media="screen">
+
+html, body {
+width: 100%;
+height: 100%;
+margin: 0px;
+background:#FFF;
+padding:0px;
+font-family:Arial, Helvetica, sans-serif;
+font-size:12px;
+background:#0D1D32;
+color:#ffffff;
+}
+input, textarea{
+border:solid 1px #69C;
+font-size:10px;
+}
+h1, h2, h3, p, a {
+	width:85%;
+	padding:4px;
+	margin:0px;
+	color:#FF9700;
+}
+h1{color:#FF9700;font-size:19px;}
+h2{font-size:17px;}
+h3{color:#FFB951;font-size:14px;}
+p{
+	color:#ffffff;
+	font-size:12px;
+}
+span{font-weight:bold; color:#FC0; font-size:13px; font-family:Tahoma, Geneva, sans-serif}
+.white{font-weight:bold; color:#fff; font-size:13px; font-family:Tahoma, Geneva, sans-serif}
+.whiteBig{font-weight:bold; color:#fff; font-size:20px; font-family:Tahoma, Geneva, sans-serif}
+
+</style>
+</head>
+<body>
+
+
+		 <link type="text/css" rel="stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shCoreDefault.css"/>
+<link href='http://www.dhtmlx.com.br/docs/styles/shCore.css' rel='stylesheet' type='text/css' />
+<link href='http://www.dhtmlx.com.br/docs/styles/shThemeDefault.css' rel='stylesheet' type='text/css' />
+<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeMidnight.css"/>
+<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeRDark.css"/>
+<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeFadeToGrey.css"/>
+<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shCore.js"></script>
+<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPerl.js"></script>
+<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPhp.js"></script>
+<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushJScript.js"></script>
+<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPlain.js"></script>
+
+<script src='http://www.dhtmlx.com.br/docs/scripts/shAutoloader.js' type='text/javascript'></script>
+<script src='http://www.dhtmlx.com.br/docs/scripts/shBrushXml.js' type='text/javascript'></script>
+<script src='http://www.dhtmlx.com.br/docs/scripts/shBrushCss.js' type='text/javascript'></script>
+<script type="text/javascript">
+
+SyntaxHighlighter.all();
+SyntaxHighlighter.defaults['toolbar'] = false;
+</script>
+<h1><img src="http://www.web2solutions.com.br/imagens/logo.png" /></h1>
+<h1>End point documentation - REST API</h1>
+<p><em><strong><span>This documentation presumes that you already have DHTMLX Suite PRO version and CAIRS fw  installed on your system</span></strong></em><strong>.</strong></p>
+<p>&nbsp;</p>
+
+<h2>Summary</h2>
+<p>This end point provides CRUD support for the table <span>[% tableName %]</span></p>
+
+<p>&nbsp;</p>
+<hr />
+<p>&nbsp;</p>
+<h2>Note</h2>
+<p>In this entire doc, the character " <span>:</span> " as variable prefix, indicates a numeric variable.<br>
+Then, for example, instead passing values like <span>:[% primaryKey %]</span>, please pass a number against it.
+</p>
+<hr />
+<p>&nbsp;</p>
+<h2>End point information</h2>
+<p>address: <span>[% prefix %]/[% collectionName %]</span></p>
+<p>collection name: <span>[% collectionName %]</span></p>
+<p>default columns: <span>[% defaultColumnsStr %]</span></p>
+<p>primaryKey: <span>[% primaryKey %]</span></p>
+<p>&nbsp;</p>
+
+<hr />
+<p>&nbsp;</p>
+
+<h2>Implemented HTTP verbs and routes</h2>
+<p>&nbsp;</p>
+<h3><span>GET</span> <b>[% prefix %]/[% collectionName %]</b></h3>
+<p>List all records from [% tableName %] table</p>
+<p>&nbsp;</p>
+<h3><span>POST</span> <b>[% prefix %]/[% collectionName %]</b></h3>
+<p>Insert a new record into [% tableName %] table</p>
+<p>&nbsp;</p>
+<h3><span>PUT</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>Update an existing record at [% tableName %] table</p>
+<p>&nbsp;</p>
+<h3><span>DEL</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>Delete an existing record from [% tableName %] table</p>
+<p>&nbsp;</p>
+<h3><span>GET</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>Get specified record at [% tableName %] table</p>
+
+
+<p>&nbsp;</p>
+<hr />
+<p>&nbsp;</p>
+
+
+<h2>Params per route</h2>
+<h3><span>GET</span> <b>[% prefix %]/[% collectionName %]</b></h3>
+<p>
+<span>columns</span> - use this to pass a list of columns to be returned by the end point.<br>
+This is very useful when you need to order the columns position on returned data.<br>
+default: [% defaultColumnsStr %]
+<br> <span>not mandatory</span>
+</p>
+<p>
+<span>filter</span> - use this to pass A JSON object containing pairs of key/values. Key are column names and values
+    are string which will be used to search foron that column.<br>
+default: none
+<br> <span>not mandatory</span>
+</p>
+<p>
+<span>filter_operator</span> - use this to pass the boolean operation to make comparison between filters. Values: AND or OR.<br>
+default: AND
+<br> <span>not mandatory</span>
+</p>
+<p>
+<span>order</span> - A JSON object containing two properties: orderby and direction. <br>
+orderby: is the name of the column to be used as ordering criteria <br>
+direction: is a valid SQL keyword that defines the direction of the ordering<br>
+default: [% primaryKey %] ASC
+<br> <span>not mandatory</span>
+</p>
+<p>
+<span>posStart</span> - The initial record position on the page.<br>
+default: 1 <br>
+<span>not mandatory</span>
+</p>
+<p>
+<span>count</span> - The total records on the page.<br>
+default: 1000 <br>
+<span>not mandatory</span>
+</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h3><span>POST</span> <b>[% prefix %]/[% collectionName %]</b></h3>
+<p>
+<span>hash</span> - hash is a JSON object 100% compatible with form.getFormData() hash. <br>
+It holds pairs of key/values, where key is the column name from a table and value is the properly value for that column when creating the record<br>
+<span>mandatory</span><br>
+</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h3><span>PUT</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>
+<span>hash</span> - hash is a JSON object 100% compatible with form.getFormData() hash. <br>
+It holds pairs of key/values, where key is the column name from a table and value is the properly value for that column when updating the record<br>
+<span>mandatory</span><br>
+</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h3><span>DEL</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h3><span>GET</span> <b>[% prefix %]/[% collectionName %]/:[% primaryKey %]</b></h3>
+<p>
+<span>columns</span> - use this to pass a list of columns to be returned by the end point.<br>
+This is very useful when you need to order the columns position on returned data.<br>
+default: [% defaultColumnsStr %]
+<br> <span>not mandatory</span>
+</p>
+
+<p>&nbsp;</p>
+
+<hr />
+<h2>Client-side example calls using RESTful client</h2>
+<h3>list all records with all default columns</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.get({
+    resource :  "[% prefix %]/[% collectionName %]"
+    ,format : "json" // not mandatory, default json
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the first record: " + json.[% collectionName %][0].[% primaryKey %]);
+
+		json.[% collectionName %].forEach( function (row, index, array)
+		{
+			[% FOREACH variable IN defaultColumns %]
+			console.log( row.[% variable %] )
+			[% END %]
+		});
+
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<h3>list all records, but returning only specified columns</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.get({
+    resource :  "[% prefix %]/[% collectionName %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "columns=[% defaultColumns.1 %],[% defaultColumns.0 %]"
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("specified column of the first record: " + json.[% collectionName %][0].[% defaultColumns.0 %]);
+
+		json.[% collectionName %].forEach( function (row, index, array)
+		{
+			console.log( row.[% defaultColumns.1 %] );
+			console.log( row.[% defaultColumns.0 %] );
+		});
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p></p>
+<h3>list filtered data</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.get({
+    resource :  "[% prefix %]/[% collectionName %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "filter_operator=AND&filter={ '[% defaultColumns.last %]' : 'some value'}"
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("specified column of the first record: " + json.[% collectionName %][0].[% defaultColumns.0 %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p></p>
+<h3>list ordered data</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.get({
+    resource :  "[% prefix %]/[% collectionName %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "order={direction: 'DESC', orderby: '[% defaultColumns.last %]'}"
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("specified column of the first record: " + json.[% collectionName %][0].[% defaultColumns.0 %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Insert [% collectionName %]</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+// var hash = form.getFormData();
+var hash = {
+	[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSE %]'[% variable %]' : '',[% END %][% END %]
+};
+
+$dhx.REST.API.post({
+    resource :  "[% prefix %]/[% collectionName %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "hash=" + JSON.stringify( hash )
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the new record: " + json.[% primaryKey %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Update [% collectionName %]</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+// var hash = form.getFormData();
+var hash = {
+	[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSE %]'[% variable %]' : '',[% END %][% END %]
+};
+
+$dhx.REST.API.put({
+    resource :  "[% prefix %]/[% collectionName %]/:[% primaryKey %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "hash=" + JSON.stringify( hash )
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the record: " + json.[% primaryKey %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Bulk update [% collectionName %]</h3>
+<p>Pass a list of comma separated IDs</p>
+<pre class="brush: js;ruler: true; first-line: 1;">
+// var hash = form.getFormData();
+var hash = {
+	[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSE %]'[% variable %]' : '',[% END %][% END %]
+};
+
+$dhx.REST.API.put({
+    // :[% primaryKey %] is a valid record id (number)
+	resource :  "[% prefix %]/[% collectionName %]/:[% primaryKey %],:[% primaryKey %],:[% primaryKey %],:[% primaryKey %],:[% primaryKey %]"
+    ,format : "json" // not mandatory, default json
+    ,payload : "hash=" + JSON.stringify( hash )
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the record: " + json.[% primaryKey %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Delete [% collectionName %]</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.del({
+    resource :  "[% prefix %]/[% collectionName %]/:[% primaryKey %]"
+    ,format : "json" // not mandatory, default json
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the deleted record: " + json.[% primaryKey %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Bulk delete [% collectionName %]</h3>
+<p>Pass a list of comma separated IDs</p>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.del({
+    // :[% primaryKey %] is a valid record id (number)
+	resource :  "[% prefix %]/[% collectionName %]/:[% primaryKey %],:[% primaryKey %],:[% primaryKey %],:[% primaryKey %]"
+    ,format : "json" // not mandatory, default json
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+        alert("Id of the deleted record: " + json.[% primaryKey %]);
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<p>&nbsp;</p>
+<h3>Get [% collectionName %]</h3>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.REST.API.get({
+    resource :  "[% prefix %]/[% collectionName %]/:[% primaryKey %]"
+    ,format : "json" // not mandatory, default json
+    ,onSuccess : function( request )
+    {
+        var json = JSON.parse( request.response );
+        console.log(request);
+		[% FOREACH variable IN defaultColumns %]
+		console.log( json.hash.[% variable %] )
+		[% END %]
+    }
+    ,onFail : function( request )
+    {
+        var json = JSON.parse( request.response );
+    }
+});
+</pre>
+<p></p>
+<hr />
+<p></p>
+<h2>Client-side example using jDBd datastore</h2>
+<h3>create dataset [% tableName %]</h3>
+<h4>Facade style</h4>
+<pre class="brush: js;ruler: true; first-line: 1;">
+$dhx.jDBd.create({
+	data_set_name: "[% tableName %]"
+	,primary_key: "[% primaryKey %]"
+	,overwrite: true
+	,api_service: {
+	    end_point: "[% prefix %]/[% collectionName %]"
+	    ,collection_name: "[% collectionName %]"
+	    ,api_payload: "columns=[% defaultColumnsStr %]"
+	}
+	,onSuccess: function( dataset ) {}
+	,onFail: function( request ) {}
+});
+</pre>
+<h4>Constructor style</h4>
+<pre class="brush: js;ruler: true; first-line: 1;">
+var dt = new $dhx.dataStore({
+	data_set_name: "[% tableName %]"
+	,primary_key: "[% primaryKey %]"
+	,overwrite: true
+	,api_service: {
+	    end_point: "[% prefix %]/[% collectionName %]"
+	    ,collection_name: "[% collectionName %]"
+	    ,api_payload: "columns=[% defaultColumns.1 %],[% defaultColumns.0 %]"
+	}
+	,onSuccess: function( dataset ) {}
+	,onFail: function( request ) {}
+});
+</pre>
+<p></p>
+<hr />
+<p></p>
+<h2>Complete client side CRUD example using jDBd</h2>
+<pre class="brush: js;ruler: true; first-line: 1;  html-script: true">
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;link  rel="stylesheet" type="text/css" href="//www.dhtmlx.com.br/codebase3.6/dhtmlx.css" /&gt;
+&lt;link rel="stylesheet" type="text/css" href="//www.dhtmlx.com.br/codebase3.6/dhtmlxForm/codebase/skins/dhtmlxform_dhx_skyblue.css"&gt;
+&lt;script type="text/javascript" src="//www.dhtmlx.com.br/codebase3.6/dhtmlx.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="//www.dhtmlx.com.br/dhx/dhx.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+/* ---------- [% tableName %]_app settings ---------- */
+var [% tableName %]_settings = {
+    /* ---------- form configuration ---------- */
+	conf_form: {
+        "template": [
+			/* ---------- form default settings ---------- */
+			{
+                type: "settings",
+                position: "label-left",
+                labelWidth: 120,
+                inputWidth: 160
+            }
+
+			/* ---------- fields ---------- */[% FOREACH variable IN defaultColumns %][% IF variable != defaultColumns.first %]
+			, {
+                type: 'input',
+                name: '[% variable %]',
+                label: '[% variable %]'
+            }[% END %][% END %]
+			/* ---------- fields ---------- */
+
+			/* ---------- save, update and delete buttons - hot operations ---------- */
+            , {
+                type: "button",
+                value: "save existing record",
+                // x_special_button_update id automatically recognized when binding a form to a dataset
+                name: "x_special_button_update"
+            }, {
+                type: "button",
+                value: "save as new",
+                // x_special_button_save id automatically recognized when binding a form to a dataset
+                name: "x_special_button_save"
+            }, {
+                type: "button",
+                value: "delete current record",
+                // x_special_button_delete id automatically recognized when binding a form to a dataset
+                name: "x_special_button_delete"
+            }
+        ]
+    } // end form settings
+    , // grid settings
+    conf_grid: {
+        "headers": "[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSIF variable == defaultColumns.last %][% variable %][% ELSE %][% variable %],[% END %][% END %]",
+        "ids": "[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSIF variable == defaultColumns.last %][% variable %][% ELSE %][% variable %],[% END %][% END %]",
+        "widths": "*",
+        "coltypes": "[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSIF variable == defaultColumns.last %]ro[% ELSE %]ro,[% END %][% END %]",
+		"colaligns": "[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSIF variable == defaultColumns.last %]left[% ELSE %]left,[% END %][% END %]"
+    } // end grid settings
+	, conf_window: {
+        "image_path": "http://www.dhtmlx.com.br/codebase3.6/imgs/",
+        "viewport": "body",
+        "left": 100,
+        "top": 5,
+        "width": 300,
+        "height": 300,
+        "enableAutoViewport": true,
+        "icon": "dock.gif",
+        "icon_dis": "dock.gif"
+    }
+
+	,"conf_toolbar": {
+        "icon_path": "http://www.dhtmlx.com.br/codebase3.6/imgs/",
+        "items": [
+            {
+                "type": "button",
+                "id": "edit",
+                "text": "edit",
+                "img": "dock.gif",
+                "img_disabled": "dock.gif"
+				,disabled : true
+            }
+			,{
+                "type": "button",
+                "id": "delete",
+                "text": "delete",
+                "img": "dock.gif",
+                "img_disabled": "dock.gif"
+				,disabled : true
+            }
+        ]
+    }
+}; // end settings
+// global vars
+
+// CAUTION
+// generate user credential into a cookie
+// dont use it on production
+var private_key = navigator.userAgent;
+var user_credential = $dhx.crypt.base64_encode(
+    $dhx.crypt.base64_encode('restoremleahy@adoptionassociates.net') +
+    ":" +
+    $dhx.crypt.SHA2(private_key + "_" + '2dnewszosNXN3t7k2OHiwt/g6MTN0OTZ3J3c1ePF6NOkn83JyZ0=')
+);
+$dhx.cookie.set("apitemp", user_credential, $dhx.REST.API.date_expiration / 1000);
+// dont use it on production ^^
+// CAUTION
+
+
+// application singleton
+var [% tableName %]_app = {
+    grid: null
+    ,form: null
+	,window_manager : null
+	,window : null
+    ,layout: null
+	,toolbar: null
+    ,datastore: null
+	,view : {
+
+		start_window_manager: function () {
+			var self = [% tableName %]_app;
+			self.window_manager = new dhtmlXWindows();
+			self.window_manager.setImagePath([% tableName %]_settings.conf_window.image_path);
+		}
+		,
+		window :
+        {
+            render: function()
+			{
+				var self = [% tableName %]_app;
+
+				if (self.window_manager === null)
+					self.view.start_window_manager();
+
+				if (self.window_manager.isWindow("window_[% tableName %]_app_edit"))
+				{
+					self.window.show();
+					self.window.bringToTop();
+					return;
+				}
+
+				self.window = self.window_manager.createWindow(
+					"window_[% tableName %]_app_edit",
+					[% tableName %]_settings.conf_window.left,
+					[% tableName %]_settings.conf_window.top,
+					[% tableName %]_settings.conf_window.width,
+					[% tableName %]_settings.conf_window.height
+				);
+
+				self.window.setText('Save/Update window');
+				self.window.setIcon(
+					[% tableName %]_settings.conf_window.icon,
+					[% tableName %]_settings.conf_window.icon_dis
+				);
+
+				self.view.form.render();
+
+				self.window.attachEvent("onClose", function (win) {
+					return true;
+				});
+			}
+		}
+		,layout :
+		{
+			render: function () {
+				var self = [% tableName %]_app;
+				self.layout = new dhtmlXLayoutObject(document.body, '1C');
+				var a = self.layout.cells('a');
+				//a.setWidth(158);
+				a.hideHeader();
+				//a.fixSize(true, true);
+			}
+		}
+		,toolbar :
+		{
+			render: function () {
+				var self = [% tableName %]_app;
+				self.toolbar = self.layout.cells("a").attachToolbar([% tableName %]_settings.conf_toolbar);
+				self.toolbar.attachEvent("onClick", function (id) {
+					if(id == 'edit')
+					{
+						self.view.window.render();
+					}
+					else if(id == 'delete')
+					{
+						dhtmlx.message({
+							title: "delete data",
+							type: "confirm",
+							text: "Do you really want to delete the selected record?",
+							ok: "delete",
+							cancel: "cancel",
+							callback: function (ok) {
+								if (ok) {
+									[% tableName %]_app.datastore.deleteCurrentRecord();
+								}
+							}
+						});
+					}
+				});
+			}
+		}
+		,grid :
+		{
+			render: function () {
+				var self = [% tableName %]_app;
+				// begin grid code
+				// create dhtmlx grid
+				self.grid = self.layout.cells("a").attachGrid();
+				// configure dhtmlx grid
+				self.grid.setHeader([% tableName %]_settings.conf_grid.headers);
+				self.grid.setColumnIds([% tableName %]_settings.conf_grid.ids);
+				self.grid.setInitWidths([% tableName %]_settings.conf_grid.widths);
+				self.grid.setColTypes([% tableName %]_settings.conf_grid.coltypes);
+				self.grid.setColAlign([% tableName %]_settings.conf_grid.colaligns);
+				self.grid.init();
+				self.grid.attachEvent("onRowSelect", function (id, ind) {
+					// set cursor position to the selected grid row
+					self.datastore.setCursor({
+						position: id
+					});
+
+					self.toolbar.enableItem("edit");
+					self.toolbar.enableItem("delete");
+				});
+
+				// enable live saving after editing a cell
+				self.grid.saveOnEdit = true;
+
+				// end grid code
+			}
+		}
+		,form :
+		{
+			render: function () {
+				var self = [% tableName %]_app;
+				// create dhtmlx form
+        		self.form = self.window.attachForm([% tableName %]_settings.conf_form.template);
+				self.datasystem.bind_form();
+			}
+		}
+	}
+	,datasystem : {
+
+		start : function (){
+			var self = [% tableName %]_app;
+
+			$dhx.showDirections("creating dataset ");
+
+			// create main the dataset.
+			self.datastore = new $dhx.dataStore({
+				// For best conventions, use the same name of the table on the database
+				data_set_name: "[% tableName %]"
+
+				// primary key name of the table
+				,primary_key: "[% primaryKey %]"
+
+				// provide an static array containing the data for filling the dataset
+				//,data : []
+
+				// should overwrite this dataset on the memory if it already exists?
+				,overwrite: true
+
+				// provide API informations for fetching data from server
+				// use it when creating the dataset with server data, instead providing an static array
+				// not mandatory default false
+				,api_service: {
+
+					// API end point (before running look for :variables and replace by a valid record id (number)
+					end_point: "[% prefix %]/[% collectionName %]"
+
+					// API data collection name -&gt; MANDATORY
+					,collection_name: "[% collectionName %]"
+
+					// request payload. not mandatory
+					,api_payload: "columns=" + [% tableName %]_settings.conf_grid.ids + ",[% defaultColumns.first %]"
+				}
+				,// not mandatory default no call
+				onSuccess: function () {
+					self.datasystem.sync_grid();
+				}
+				,// not mandatory default no call
+				onFail: function (request) {
+					console.log("cant create dataset");
+				}
+			}); // end create dataset
+		}
+		,sync_grid : function(){
+			var self = [% tableName %]_app;
+			// sync grid
+			self.datastore.sync({
+				component: self.grid // mandatory
+				,component_id: "grid" // mandatory
+				,onSuccess: function () {
+					// if grid was successful synced, then
+
+					// select the first record on the grid
+					self.grid.selectRow(0, true, false, false);
+
+					$dhx.hideDirections();
+				},
+				onFail: function (reason) {
+					console.log(reason);
+					$dhx.hideDirections();
+				}
+			});
+		}
+
+		,bind_form : function(){
+			var self = [% tableName %]_app;
+			// bind form
+			self.datastore.bind({
+				component: self.form // mandatory
+				,component_id: "form" // mandatory
+			});
+		}
+	}
+    ,start: function () {
+        var self = this;
+
+		$dhx.hideDirections();
+
+		// set global dhtmlx img path
+        window.dhx_globalImgPath = "http://www.dhtmlx.com.br/codebase3.6/imgs/";
+
+
+
+		self.view.layout.render();
+        self.view.toolbar.render();
+		self.view.grid.render();
+		self.datasystem.start();
+    }
+};
+
+
+// start application when DOM is loaded
+window.onload = function (e) {
+
+	// lets init CAIRS fw (necessary for log and some other features)
+	$dhx.init();
+
+	$dhx.showDirections("authorizing application ");
+
+	// authorize application
+    $dhx.REST.API.authorize( {
+        onSuccess: function (request) {
+            // call app controller
+			[% tableName %]_app.start();
+        },
+        onFail: function (request) {
+			console.log("not authorized");
+        }
+    } );
+}
+&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>&nbsp;</p>
+<p>AgileREST - WEB2 Solutions</p>
+
+
+
+
+<div id="footer">
+Powered by <a href="http://mojolicio.us/">Mojolicious</a> - <a href="http://perl.org/">Perl</a>  [% perl_version %]
+</div>
+</body>
+</html>

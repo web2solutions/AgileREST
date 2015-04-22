@@ -58,17 +58,15 @@ has 'table_prefix' => (
 );
 
 
+has 'schema' => (
+	is      => 'rw',
+	default => ''
+);
+
+
 sub BUILD {
-
 	my $self = shift;
-
-	my $API = $self->API;
-
-	my $logger = $self->logger;
-
-  $logger->debug( $self->table_prefix . $self->collection );
-
-	my $table_schema = $API->get_table_schema( $self->table_prefix . $self->collection );
+	my $table_schema = $self->API->get_table_schema( $self->table_prefix . $self->collection );
 	my $primaryKey = $table_schema->{primary_key};
 	my $columns = '';
 	for( @{$table_schema->{columns}} )
@@ -76,12 +74,10 @@ sub BUILD {
 		$columns = $columns . $_->{name} . ',' if $_->{name} ne $primaryKey;
 	}
 	$columns = $columns . $primaryKey;
-
 	$self->default_columns( $columns );
-
 	$self->primary_key( $primaryKey );
-
 	$self->columns( $table_schema->{columns} );
+	$self->schema( $table_schema );
 }
 
 
@@ -89,9 +85,7 @@ sub table_data
 {
 	my $self = shift;
 	my $API = $self->API;
-
 	my @table_data = $API->SelectTable( $self->collection );
-
 	return @table_data;
 }
 
@@ -133,7 +127,7 @@ sub list
 	my $strColumns = $columns || $defaultColumns;
 	$strColumns=~ s/'//g;
 	my @columns = split(/,/, $strColumns);
-	$strColumns = MAP::API->normalizeColumnNames( $strColumns, $defaultColumns );
+	$strColumns = $self->API->normalizeColumnNames( $strColumns, $defaultColumns );
 
 
 	if ( defined( $relationalColumn ) )
@@ -260,9 +254,6 @@ sub list
 			{
 				if (defined($record->{$_}))
 				{
-					#push @values, decode('UTF-8', $record->{$_}); # DBI is internally decoding
-					#$row_native->{$_} = decode('UTF-8', $record->{$_}); # DBI is internally decoding
-					#$row_collection->{$_} = decode('UTF-8', $record->{$_}); # DBI is internally decoding
 					push @values, $record->{$_};
 					$row_native->{$_} = $record->{$_};
 					$row_collection->{$_} = $record->{$_}
@@ -281,7 +272,6 @@ sub list
 			push @records_native, $row_native;
 			push @records_collection, $row_collection;
 	}
-	#$dbh->disconnect();
 
 	#if( $posStart == 0 )
 	#{
@@ -319,6 +309,7 @@ sub list
 
 	return $response || {};
 }
+
 
 
 sub read
@@ -369,21 +360,18 @@ sub read
 }
 
 
+
 sub create
 {
 	my $self = shift;
 	my $conf = shift;
-
 	my $logger = $self->logger;
 	my $API = $self->API;
 	my $primaryKey = $self->primary_key;
-	my $columns = $conf->{columns} || $self->default_columns;
-
 	my $tableName = $self->table_prefix . $self->collection;
 	my $defaultColumns = $self->default_columns;
-	my $strColumns = $columns || $defaultColumns;
-
-	my $hashStr = $conf->{hash} || '{}';
+	$defaultColumns = $self->API->normalizeColumnNames( $defaultColumns, $defaultColumns );
+	my $hashStr = $conf->{hash} || return { error => 'please provide a hash of properties' };
 	my $json_bytes = encode('UTF-8', $hashStr);
 	my $hash = JSON->new->utf8->decode($json_bytes) or return { error => "unable to decode"};
 	#my $hash =  from_json( $hashStr );
@@ -401,7 +389,7 @@ sub create
 			{
 					if ( defined( $hash{$key} ) )
 					{
-							if ( index($defaultColumns, $key) != -1 )
+							if ( index($defaultColumns, '"'.$key.'"') != -1 )
 							{
 									if ( $key ne $primaryKey) {
 											if ( index($sql_columns, '"' .$key.'"') < 0 )
@@ -418,7 +406,7 @@ sub create
 
 	if( length($sql_columns) < 2)
 	{
-		return { error => 'please provide a hash of properties' }
+		return { error => 'please propvide valid column names' }
 	}
 
 	my $strSQL = 'INSERT INTO
@@ -426,6 +414,7 @@ sub create
 		VALUES(' . substr($sql_placeholders, 0, -2) . ')
 		RETURNING '.$primaryKey.';
 	';
+
 	my $sth = $dbh->prepare( $strSQL, );
 	$sth->execute( @sql_values ) or return { error => $sth->errstr . " --------- ".$strSQL };
 	my $record_id = 0;
@@ -450,26 +439,19 @@ sub update{
 	my $conf = shift;
 	my $logger = $self->logger;
 	my $API = $self->API;
-
 	# read conf or assume defaults
-	my $columns = $conf->{columns} || $self->default_columns;
-	my $str_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
-	$str_id=~ s/'//g;
-	my $primaryKey = $self->primary_key;
-
-	my $tableName = $self->table_prefix . $self->collection;
-	my $defaultColumns = $self->default_columns;
-	my $strColumns = $columns || $defaultColumns;
-	$strColumns=~ s/'//g;
-	my @columns = split(/,/, $strColumns);
-
-
-	my $item_id  = $str_id || return { error => 'id is missing on URL' };
+	my $item_id  = $conf->{item_id} || return { error => 'id is missing on URL' };
 	$item_id=~ s/'//g;
-	#my $agency_id = request->header("X-AId") || MAP::API->fail( "please provide agency_id" );
-	#$defaultColumns = MAP::API->normalizeColumnNames( $defaultColumns, $defaultColumns );
+	my $hashStr = $conf->{hash} || return { error => 'please provide a hash of properties' };
+	# primary key name
+	my $primaryKey = $self->primary_key;
+	# table name
+	my $tableName = $self->table_prefix . $self->collection;
+	# table column names
+	my $defaultColumns = $self->default_columns;
+	# lets wrap each column name inside "" double quote
+	$defaultColumns = $self->API->normalizeColumnNames( $defaultColumns, $defaultColumns );
 
-	my $hashStr = $conf->{hash} || '{}';
 	my $json_bytes = encode('UTF-8', $hashStr);
 	my $hash = JSON->new->utf8->decode($json_bytes) or return { error => 'unable to decode' };
 	#my $hash =  from_json( $hashStr );
@@ -482,12 +464,12 @@ sub update{
 	{
 			if ( defined( $hash{$key} ) )
 			{
-					if ( index(MAP::API->normalizeColumnNames( $defaultColumns, $defaultColumns ), '"'.$key.'"') != -1 )
+					if ( index($defaultColumns, '"'.$key.'"') != -1 )
 					{
 							if ( $key ne $primaryKey) {
 									if ( index($sql_setcolumns, '"' .$key.'"') < 0 )
 									{
-											$sql_setcolumns = $sql_setcolumns .'"'. $key .'"" = ?, ';
+											$sql_setcolumns = $sql_setcolumns .'"'. $key .'" = ?, ';
 											push @sql_values, $hash{$key};
 									}
 							}
@@ -497,33 +479,29 @@ sub update{
 
 	if( length($sql_setcolumns) < 2)
 	{
-		return { error => 'please provide a hash of properties' }
+		return { error => 'please propvide valid column names' }
 	}
 
 	my $dbh = $API->dbh;
-	my $strSQL = 'UPDATE '.$tableName.' SET ' . substr($sql_setcolumns, 0, -2) . ' WHERE ['.$primaryKey.'] IN ('.$item_id.')';
+	my $strSQL = 'UPDATE '.$tableName.' SET ' . substr($sql_setcolumns, 0, -2) . ' WHERE "'.$primaryKey.'" IN ('.$item_id.')';
 	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( @sql_values ) or MAP::API->fail( $sth->errstr . " --------- ".$strSQL . " --- " . dump(@sql_values) . " ----- " . $item_id );
-
-
+	$sth->execute( @sql_values ) or return { error => $sth->errstr . " --------- ".$strSQL . " --- " . dump(@sql_values) . " ----- " . $item_id };
 	if ( $sth->rows == 0 ) {
 			return {
 				error => 'resource_not_found',
 				strSQL => $strSQL,
 				primaryKey => $primaryKey,
-        str_id => $str_id
+        str_id => $item_id
 			}
 	}
 
-
 	return {
 			status => 'success',
-			response => 'Item '.$str_id.' updated on ' . $self->collection,
+			response => 'Item '.$item_id.' updated on ' . $self->collection,
 			sql => $strSQL,
-			''.$primaryKey.'' => $str_id,
+			''.$primaryKey.'' => $item_id,
 			place_holders_dump => dump(@sql_values)
 	};
-
 }
 
 
@@ -532,39 +510,34 @@ sub del{
 	my $conf = shift;
 	my $logger = $self->logger;
 	my $API = $self->API;
-
 	# read conf or assume defaults
-	my $str_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
-	$str_id=~ s/'//g;
 	my $primaryKey = $self->primary_key;
-
 	my $tableName = $self->table_prefix . $self->collection;
-	my $item_id  = $str_id || return { error => 'id is missing on URL' };
+	my $item_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
 	$item_id=~ s/'//g;
 
 	my $dbh = $API->dbh;
-
-	my $strSQL = 'DELETE FROM '.$tableName.' WHERE '.$primaryKey.' IN ('.$str_id.')';
+	my $strSQL = 'DELETE FROM '.$tableName.' WHERE "'.$self->primary_key.'" IN ('.$item_id.')';
 	my $sth = $dbh->prepare( $strSQL, );
 	$sth->execute( ) or return { error => $sth->errstr . "   ----   ". $strSQL};
-
-
 	if ( $sth->rows == 0 ) {
 			return {
 				error => 'resource_not_found',
 				strSQL => $strSQL,
-				primaryKey => $primaryKey,
-        str_id => $str_id
+				primaryKey => $self->primary_key,
+        str_id => $item_id
 			}
 	}
-
 	return {
 			status => 'success',
-			response => 'Item '.$str_id.' deleted on ' . $self->collection,
+			response => 'Item '.$item_id.' deleted on ' . $self->collection,
 			sql => $strSQL,
-			''.$primaryKey.'' => $str_id
+			''.$self->primary_key.'' => $item_id
 	};
 
 }
+
+
+
 
 1;
