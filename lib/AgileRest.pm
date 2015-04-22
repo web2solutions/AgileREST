@@ -111,6 +111,9 @@ sub startup {
       my $logger = $c->logger;
       my $origin = $c->req->headers->header('Origin') || '*';
       $c->res->headers->header('Access-Control-Allow-Origin'=> $origin);
+      $c->res->headers->header('Content-Type'=> 'application/json; charset=utf-8');
+      $c->res->headers->www_authenticate('Basic');
+      
       $c = $c->render(
         json => {
           status => 'err', response =>  'Unauthorized: '. $err_msg
