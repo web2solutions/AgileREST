@@ -286,26 +286,7 @@ sub doc {
   my $API = $self->API;
 
 
-  my $auth = request->env->{HTTP_AUTHORIZATION} || MAP::API->unauthorized("please login");
-	$auth =~ s/Basic //gi;
 
-	my ($salt_api_user, $salt_api_secret) = split(/:/, (MIME::Base64::decode($auth) || ":"));
-
-	my $user =  $salt_api_user;
-	my $pass =  $salt_api_secret;
-
-		 #return  $pass;
-
-	if ( $user ne 'frango' &&  $pass ne 'frango') {
-			$self->unauthorized("wrong user or password");
-	}
-
-
-  #my $access_granted_message = $API->check_authorization( $self );
-  #if ( $access_granted_message ne 'granted' )
-  #{
-  #  return $self->unauthorized( $access_granted_message );
-  #}
 
 
 
@@ -344,7 +325,8 @@ sub doc {
 
 
 
-  $self->render(
+
+  return $self->render(
     template => 'doc',
     format => 'html',
     handler => 'tt',
@@ -355,9 +337,10 @@ sub doc {
     defaultColumns => [@defaultColumns],
     defaultColumnsStr => $defaultColumns,
     primaryKey => $model->primary_key
-  );
+  ) if $self->req->url->to_abs->userinfo eq 'frango:frango';
 
-
+  $self->res->headers->www_authenticate('Basic');
+  $self->render(text => 'Sorry Bill, you need to authenticate!', status => 401);
 
   #$self->expose_default_headers;
   #$self->render(
