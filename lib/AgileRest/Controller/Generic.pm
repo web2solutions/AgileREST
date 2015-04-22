@@ -287,6 +287,7 @@ sub doc {
   # Do something after the transaction has been finished
   $self->on(finish => sub {
     my $c = shift;
+    
     $API->trackAccessLog( $c );
   });
 }
