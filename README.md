@@ -1,6 +1,6 @@
 # AgileREST
 
- Agile build rich and powerful enterprise web applications
+ Agile build rich and powerful enterprise web applications. *** under development
 
 ## Summary
 
