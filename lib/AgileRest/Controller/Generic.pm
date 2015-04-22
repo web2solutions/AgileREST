@@ -284,48 +284,26 @@ sub del {
 sub doc {
   my $self = shift;
   my $API = $self->API;
-
-
-
-
-
-
   my $app = $self->app;
   my $logger = $self->logger;
-
-  $logger->debug( ' inside doc ');
-
   my $transaction = $self->tx;
   my $req = $transaction->req;
   $API->branch( $req->headers->header('X-branch') || 'test' );
-
-
   my $model = AgileRest::Model::Generic->new(
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
     logger => $logger
   );
-
-
   my $table_schema = $model->schema;
   my $tableName = $model->table_prefix . $model->collection;
-
   my $defaultColumns = '';
   for( @{$table_schema->{columns}} )
   {
-
       $defaultColumns = $defaultColumns . $_->{name} . ',' if $_->{name} ne $model->primary_key;
   }
-
   $defaultColumns = $defaultColumns . $model->primary_key;
-
   my @defaultColumns = split(/,/, $defaultColumns);
-
-
-
-
-
   return $self->render(
     template => 'doc',
     format => 'html',
@@ -337,17 +315,9 @@ sub doc {
     defaultColumns => [@defaultColumns],
     defaultColumnsStr => $defaultColumns,
     primaryKey => $model->primary_key
-  ) if $self->req->url->to_abs->userinfo eq 'frango:frango';
-
+  ) if $self->req->url->to_abs->userinfo eq $self->app->config->{doc_user} . ':' . $self->app->config->{doc_password};
   $self->res->headers->www_authenticate('Basic');
   $self->render(text => 'Sorry Bill, you need to authenticate!', status => 401);
-
-  #$self->expose_default_headers;
-  #$self->render(
-  #  json => $item_data
-  #  ,status => 200
-  #);
-
   # Do something after the transaction has been finished
   $self->on(finish => sub {
     my $c = shift;
