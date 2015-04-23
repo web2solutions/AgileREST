@@ -47,21 +47,21 @@ span{font-weight:bold; color:#FC0; font-size:13px; font-family:Tahoma, Geneva, s
 <body>
 
 
-		 <link type="text/css" rel="stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shCoreDefault.css"/>
-<link href='http://www.dhtmlx.com.br/docs/styles/shCore.css' rel='stylesheet' type='text/css' />
-<link href='http://www.dhtmlx.com.br/docs/styles/shThemeDefault.css' rel='stylesheet' type='text/css' />
-<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeMidnight.css"/>
-<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeRDark.css"/>
-<link type="text/css" rel="Stylesheet" href="http://www.dhtmlx.com.br/docs/styles/shThemeFadeToGrey.css"/>
-<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shCore.js"></script>
-<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPerl.js"></script>
-<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPhp.js"></script>
-<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushJScript.js"></script>
-<script type="text/javascript" src="http://www.dhtmlx.com.br/docs/scripts/shBrushPlain.js"></script>
+		 <link type="text/css" rel="stylesheet" href="http://cdn.dhtmlx.com.br/docs/styles/shCoreDefault.css"/>
+<link href='http://cdn.dhtmlx.com.br/docs/styles/shCore.css' rel='stylesheet' type='text/css' />
+<link href='http://cdn.dhtmlx.com.br/docs/styles/shThemeDefault.css' rel='stylesheet' type='text/css' />
+<link type="text/css" rel="Stylesheet" href="http://cdn.dhtmlx.com.br/docs/styles/shThemeMidnight.css"/>
+<link type="text/css" rel="Stylesheet" href="http://cdn.dhtmlx.com.br/docs/styles/shThemeRDark.css"/>
+<link type="text/css" rel="Stylesheet" href="http://cdn.dhtmlx.com.br/docs/styles/shThemeFadeToGrey.css"/>
+<script type="text/javascript" src="http://cdn.dhtmlx.com.br/docs/scripts/shCore.js"></script>
+<script type="text/javascript" src="http://cdn.dhtmlx.com.br/docs/scripts/shBrushPerl.js"></script>
+<script type="text/javascript" src="http://cdn.dhtmlx.com.br/docs/scripts/shBrushPhp.js"></script>
+<script type="text/javascript" src="http://cdn.dhtmlx.com.br/docs/scripts/shBrushJScript.js"></script>
+<script type="text/javascript" src="http://cdn.dhtmlx.com.br/docs/scripts/shBrushPlain.js"></script>
 
-<script src='http://www.dhtmlx.com.br/docs/scripts/shAutoloader.js' type='text/javascript'></script>
-<script src='http://www.dhtmlx.com.br/docs/scripts/shBrushXml.js' type='text/javascript'></script>
-<script src='http://www.dhtmlx.com.br/docs/scripts/shBrushCss.js' type='text/javascript'></script>
+<script src='http://cdn.dhtmlx.com.br/docs/scripts/shAutoloader.js' type='text/javascript'></script>
+<script src='http://cdn.dhtmlx.com.br/docs/scripts/shBrushXml.js' type='text/javascript'></script>
+<script src='http://cdn.dhtmlx.com.br/docs/scripts/shBrushCss.js' type='text/javascript'></script>
 <script type="text/javascript">
 
 SyntaxHighlighter.all();
@@ -457,10 +457,10 @@ var dt = new $dhx.dataStore({
 &lt;html&gt;
 &lt;head&gt;
 &lt;meta charset="UTF-8"&gt;
-&lt;link  rel="stylesheet" type="text/css" href="//www.dhtmlx.com.br/codebase3.6/dhtmlx.css" /&gt;
-&lt;link rel="stylesheet" type="text/css" href="//www.dhtmlx.com.br/codebase3.6/dhtmlxForm/codebase/skins/dhtmlxform_dhx_skyblue.css"&gt;
-&lt;script type="text/javascript" src="//www.dhtmlx.com.br/codebase3.6/dhtmlx.js"&gt;&lt;/script&gt;
-&lt;script type="text/javascript" src="//www.dhtmlx.com.br/dhx/dhx.js"&gt;&lt;/script&gt;
+&lt;link  rel="stylesheet" type="text/css" href="//cdn.dhtmlx.com.br/codebase3.6/dhtmlx.css" /&gt;
+&lt;link rel="stylesheet" type="text/css" href="//cdn.dhtmlx.com.br/codebase3.6/dhtmlxForm/codebase/skins/dhtmlxform_dhx_skyblue.css"&gt;
+&lt;script type="text/javascript" src="//cdn.dhtmlx.com.br/codebase3.6/dhtmlx.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="//cdn.dhtmlx.com.br/dhx/dhx.js"&gt;&lt;/script&gt;
 &lt;script&gt;
 /* ---------- [% tableName %]_app settings ---------- */
 var [% tableName %]_settings = {
@@ -511,7 +511,7 @@ var [% tableName %]_settings = {
 		"colaligns": "[% FOREACH variable IN defaultColumns %][% IF variable == defaultColumns.first %][% ELSIF variable == defaultColumns.last %]left[% ELSE %]left,[% END %][% END %]"
     } // end grid settings
 	, conf_window: {
-        "image_path": "http://www.dhtmlx.com.br/codebase3.6/imgs/",
+        "image_path": "http://cdn.dhtmlx.com.br/codebase3.6/imgs/",
         "viewport": "body",
         "left": 100,
         "top": 5,
@@ -523,7 +523,7 @@ var [% tableName %]_settings = {
     }
 
 	,"conf_toolbar": {
-        "icon_path": "http://www.dhtmlx.com.br/codebase3.6/imgs/",
+        "icon_path": "http://cdn.dhtmlx.com.br/codebase3.6/imgs/",
         "items": [
             {
                 "type": "button",
@@ -774,7 +774,7 @@ var [% tableName %]_app = {
 		$dhx.hideDirections();
 
 		// set global dhtmlx img path
-        window.dhx_globalImgPath = "http://www.dhtmlx.com.br/codebase3.6/imgs/";
+        window.dhx_globalImgPath = "http://cdn.dhtmlx.com.br/codebase3.6/imgs/";
 
 
 
@@ -818,8 +818,6 @@ window.onload = function (e) {
 
 
 
-<div id="footer">
-Powered by <a href="http://mojolicio.us/">Mojolicious</a> - <a href="http://perl.org/">Perl</a>  [% perl_version %]
-</div>
+
 </body>
 </html>

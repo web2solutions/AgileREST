@@ -21,7 +21,7 @@ sub startup {
   # mv public lib/AgileRest/
   # mv templates lib/AgileRest/
   # Switch to installable home directory
-  #$app->home->parse(catdir(dirname(__FILE__), 'MyApp'));
+  #$app->home->parse(catdir(dirname(__FILE__), 'AgileREST'));
 
   # Switch to installable "public" directory
   #$app->static->paths->[0] = $self->home->rel_dir('public');
@@ -113,7 +113,7 @@ sub startup {
       $c->res->headers->header('Access-Control-Allow-Origin'=> $origin);
       $c->res->headers->header('Content-Type'=> 'application/json; charset=utf-8');
       $c->res->headers->www_authenticate('Basic');
-      
+
       $c = $c->render(
         json => {
           status => 'err', response =>  'Unauthorized: '. $err_msg
