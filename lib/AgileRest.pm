@@ -284,8 +284,10 @@ sub startup {
     $self->respond_to(any => { data => '', status => 200 });
   });
 
+
+  # ==== HELPERS end points
   # github hook - notify changes on branches
-  $routes->post('/github_hooks')->to(
+  $routes->post('/github/hook')->to(
     controller => 'github',
     action => 'hook'
   );
@@ -295,6 +297,17 @@ sub startup {
     controller => 'auth',
     action => 'auth'
   );
+
+  # map database and generate end points data
+  $routes->get('/database/map')->to(
+    controller => 'database',
+    action => 'map'
+  );
+
+  # ==== HELPERS end points
+
+
+
 
   # ========= persons  START
   $routes->get('/persons')->to(

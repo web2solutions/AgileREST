@@ -25,6 +25,120 @@ has 'dbh' => (
 );
 
 
+sub sqlToDhxFormType{
+	my($self, $sql_type) = @_;
+	if ( $sql_type eq 'integer' ) {
+		return 'input';
+	}
+	elsif ( $sql_type eq 'bigint' ) {
+		return 'input';
+	}
+	elsif ( $sql_type eq 'numeric' ) {
+		return 'input';
+	}
+	elsif ( $sql_type eq 'character varying' ) {
+		return 'input';
+	}
+	elsif ( $sql_type eq 'text' ) {
+		return 'input';
+	}
+	elsif ( $sql_type eq 'date' ) {
+		return 'calendar';
+	}
+	return '';
+}
+
+sub sqlToDhxFormMask{
+	my($self, $sql_type) = @_;
+	if ( $sql_type eq 'integer' ) {
+		return 'integer';
+	}
+	elsif ( $sql_type eq 'bigint' ) {
+		return 'integer';
+	}
+	elsif ( $sql_type eq 'numeric' ) {
+		return 'currency';
+	}
+	elsif ( $sql_type eq 'character varying' ) {
+		return '';
+	}
+	elsif ( $sql_type eq 'text' ) {
+		return '';
+	}
+	elsif ( $sql_type eq 'date' ) {
+		return '';
+	}
+	return '';
+}
+
+sub sqlToDhxGridType{
+	my($self, $sql_type) = @_;
+	if ( $sql_type eq 'integer' ) {
+		return 'edn';
+	}
+	elsif ( $sql_type eq 'bigint' ) {
+		return 'edn';
+	}
+	elsif ( $sql_type eq 'numeric' ) {
+		return 'edn';
+	}
+	elsif ( $sql_type eq 'character varying' ) {
+		return 'ed';
+	}
+	elsif ( $sql_type eq 'text' ) {
+		return 'txttxt';
+	}
+	elsif ( $sql_type eq 'date' ) {
+		return 'dhxCalendarA';
+	}
+	return '';
+}
+
+sub sqlToDHTMLXsort{
+	my($self, $sql_type) = @_;
+	if ( $sql_type eq 'integer' ) {
+		return 'int';
+	}
+	elsif ( $sql_type eq 'bigint' ) {
+		return 'int';
+	}
+	elsif ( $sql_type eq 'numeric' ) {
+		return 'int';
+	}
+	elsif ( $sql_type eq 'character varying' ) {
+		return 'str';
+	}
+	elsif ( $sql_type eq 'text' ) {
+		return 'str';
+	}
+	elsif ( $sql_type eq 'date' ) {
+		return 'date';
+	}
+	return 'str';
+}
+
+sub get_tables{
+	my($self) = @_;
+	my @tables;
+	my $dbh = $self->dbh;
+	my $strSQL = "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';";
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( ) or die $sth->errstr;
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+		if (
+					( $record->{table_name} ne 'agile_rest_table' )
+					and ( $record->{table_name} ne 'agile_rest_column' )
+					and ( $record->{table_name} ne 'api_access_token' )
+					and ( $record->{table_name} ne 'api_allowed_origin' )
+				)
+		{
+			push @tables, $record->{table_name};
+		}
+	}
+	return @tables;
+}
+
 sub get_table_schema{
 	my($self, $table) = @_;
 
@@ -62,6 +176,31 @@ sub get_table_schema{
 	#debug $schema->{primary_key};
 
 	return $schema;
+}
+
+
+sub get_table_foreing_keys{
+	my($self, $table) = @_;
+	my @keys;
+	my $dbh = $self->dbh;
+	my $strSQL = "SELECT
+				tc.constraint_name, tc.table_name, kcu.column_name,
+				ccu.table_name AS foreign_table_name,
+				ccu.column_name AS foreign_column_name
+		FROM
+				information_schema.table_constraints AS tc
+				JOIN information_schema.key_column_usage AS kcu
+					ON tc.constraint_name = kcu.constraint_name
+				JOIN information_schema.constraint_column_usage AS ccu
+					ON ccu.constraint_name = tc.constraint_name
+		WHERE constraint_type = 'FOREIGN KEY' AND tc.table_name='".$table."';";
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute( ) or die $sth->errstr;
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+		push @keys, $record;
+	}
+	return @keys;
 }
 
 
@@ -106,7 +245,6 @@ sub SelectOne
 sub SelectRow
 {
 	my $self = shift;
-
 	my $dbh = $self->dbh;
 	my $res = $dbh->selectrow_hashref(shift,undef,@_);
 	die"Can't execute select:\n".$dbh->errstr if $dbh->err;
@@ -154,6 +292,37 @@ sub SelectARef
 	return [] unless $data;
 	return [$data] unless ref($data) eq 'ARRAY';
 	return $data;
+}
+
+
+sub Insert
+{
+	my $self = shift;
+	my $conf = shift;
+	my $tableName = $conf->{table};
+	my $sql_columns = $conf->{columns};
+	my $sql_placeholders = $conf->{placeholders};
+	my $primaryKey = $conf->{primary_key};
+	my @sql_values = @{ $conf->{values} };
+
+
+	#die dump @sql_values;
+
+	my $dbh = $self->dbh;
+	my $strSQL = 'INSERT INTO
+		'.$tableName.'(' . $sql_columns . ')
+		VALUES(' . $sql_placeholders . ')
+		RETURNING '.$primaryKey.';
+	';
+	my $sth = $dbh->prepare( $strSQL, );
+
+	$sth->execute( @sql_values ) or die $sth->errstr . " --------- ".$strSQL;
+	my $record_id = 0;
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+			$record_id = $record->{$primaryKey};
+	}
+	return $record_id;
 }
 
 sub regex_alnum
