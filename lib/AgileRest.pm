@@ -33,7 +33,7 @@ sub startup {
 
   # >>>>>>>============= START PLUGINS =============<<<<<<<<<<
   # Documentation browser under "/perldoc"
-  $app->plugin('PODRenderer');
+  #$app->plugin('PODRenderer');
 
   # use config file
   $app->plugin('Config');
@@ -306,54 +306,59 @@ sub startup {
 
   # ==== HELPERS end points
 
+  # >>>>>>>>>>>> Generic END POINTS
+  my $dbh = $app->db;
+  my $strSQL = 'SELECT table_name FROM agile_rest_table ORDER BY table_name ASC';
+	my $sth = $dbh->prepare( $strSQL, );
+	$sth->execute() or return { error => $sth->errstr . ' ----------- '.$strSQL };
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+      my $primary_key = $API->get_table_schema( $record->{table_name} )->{primary_key};
+      my $tem_name = substr($record->{table_name}, 0, -1);
 
+      $routes->get('/'.$record->{table_name}.'')->to(
+        controller => 'generic',
+        action => 'list',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
 
+      $routes->post('/'.$record->{table_name}.'')->to(
+        controller => 'generic',
+        action => 'create',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
 
-  # ========= persons  START
-  $routes->get('/persons')->to(
-    controller => 'generic',
-    action => 'list',
-    collection => 'persons',
-    item => 'person'
-  );
+      $routes->get('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
+        controller => 'generic',
+        action => 'read',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
 
-  $routes->post('/persons')->to(
-    controller => 'generic',
-    action => 'create',
-    collection => 'persons',
-    item => 'person'
-  );
+      $routes->put('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
+        controller => 'generic',
+        action => 'update',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
 
+      $routes->delete('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
+        controller => 'generic',
+        action => 'del',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
 
-  $routes->get('/persons/:person_id')->to(
-    controller => 'generic',
-    action => 'read',
-    collection => 'persons',
-    item => 'person'
-  );
-
-  $routes->put('/persons/:person_id')->to(
-    controller => 'generic',
-    action => 'update',
-    collection => 'persons',
-    item => 'person'
-  );
-
-  $routes->delete('/persons/:person_id')->to(
-    controller => 'generic',
-    action => 'del',
-    collection => 'persons',
-    item => 'person'
-  );
-
-  $routes->get('/persons/doc/doc')->to(
-    controller => 'generic',
-    action => 'doc',
-    collection => 'persons',
-    item => 'person'
-  );
-  # ========= persons  END
-
+      $routes->get('/'.$record->{table_name}.'/doc/doc')->to(
+        controller => 'generic',
+        action => 'doc',
+        collection => $record->{table_name},
+        item => $tem_name
+      );
+  }
+  # >>>>>>>>>>>> Generic END POINTS
 
    # >>>>>>>============= END ROUTES =============<<<<<<<<<<
 }

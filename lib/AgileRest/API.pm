@@ -1,29 +1,22 @@
 package AgileRest::API;
 use Moo;
-
 #use Mojo::Message::Response;
 use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
 use Mojo::JSON qw(decode_json encode_json from_json to_json);
-
 #use Crypt::Digest::SHA256 qw( sha256_hex );
 #use MIME::Base64;
-
 use Data::Dump qw(dump);
-
 
 has 'branch' => (
 	is      => 'rw',
 	#isa     => 'Str',
 	default => 'test' # test, dev and production
 );
-
-
 has 'dbh' => (
 	is      => 'rw',
 	#isa     => 'Str',
 	default => 'not connected'
 );
-
 
 sub sqlToDhxFormType{
 	my($self, $sql_type) = @_;
