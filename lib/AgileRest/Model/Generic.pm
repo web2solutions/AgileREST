@@ -35,6 +35,14 @@ has 'logger' => (
 	required => 0
 );
 
+
+has 'controller' => (
+	is      => 'rw',
+	#isa     => 'Str',
+	default => 0,
+	required => 0
+);
+
 has 'default_columns' => (
 	is      => 'rw',
 	default => ''
@@ -66,18 +74,35 @@ has 'schema' => (
 
 sub BUILD {
 	my $self = shift;
-	my $table_schema = $self->API->get_table_schema( $self->table_prefix . $self->collection );
-	my $primaryKey = $table_schema->{primary_key};
-	my $columns = '';
-	for( @{$table_schema->{columns}} )
-	{
-		$columns = $columns . $_->{name} . ',' if $_->{name} ne $primaryKey;
+	my $logger = $self->logger;
+	#$logger->debug( 'inside build.');
+	my $tname = $self->table_prefix . $self->collection;
+	my $default_columns = $self->controller->redis->get( 'juris_'.$tname. '_default_columns') || undef;
+	my $primary_key = $self->controller->redis->get( 'juris_'.$tname. '_primary_key') || undef;
+	my $columns = $self->controller->redis->get( 'juris_'.$tname. '_columns') || undef;
+	if ( defined($default_columns) and defined($primary_key) and defined($columns) ) {
+		$self->default_columns( $default_columns );
+		$self->primary_key( $primary_key );
+		#$logger->debug( $self->controller->dumper( $columns ) );
+		$self->columns( from_json( $columns ) );
 	}
-	$columns = $columns . $primaryKey;
-	$self->default_columns( $columns );
-	$self->primary_key( $primaryKey );
-	$self->columns( $table_schema->{columns} );
-	$self->schema( $table_schema );
+	else
+	{
+		my $table_schema = $self->API->get_table_schema( $tname );
+		$primary_key = $table_schema->{primary_key};
+		$default_columns = '';
+		for( @{$table_schema->{columns}} )
+		{
+			$default_columns = $default_columns . $_->{name} . ',' if $_->{name} ne $primary_key;
+		}
+		$default_columns = $default_columns . $primary_key;
+		$self->default_columns( $default_columns );
+		$self->primary_key( $primary_key );
+		$self->columns( $table_schema->{columns} );
+		my $redis_res_default_columns = $self->controller->redis->set( 'juris_'.$tname. '_default_columns' => $columns);
+		my $redis_res_primary_key = $self->controller->redis->set( 'juris_'.$tname. '_primary_key' => $primary_key);
+		my $redis_res_columns = $self->controller->redis->set( 'juris_'.$tname. '_columns' =>  to_json( $table_schema->{columns}) );
+	}
 }
 
 
@@ -109,15 +134,15 @@ sub list
 	my $grid_json_model = $conf->{grid_json_model} || 'basic'; # basic || native
 
 	# smart rendering
-	#my $isSmartRendering = $conf->{isSmartRendering} || 0;
+	my $isSmartRendering = $conf->{isSmartRendering} || 0;
 	my $count = $conf->{count} || 50;
 
 	# universal start position of paging
 	my $posStart = $conf->{posStart} || 0;
 
 	# not smart
-	#my $nCurrentPag = $conf->{nCurrentPag} || 1;
-	#my $nRegPag = $conf->{nRegPag} || 1000;
+	my $nCurrentPag = $conf->{nCurrentPag} || 1;
+	my $nRegPag = $conf->{nRegPag} || 1000;
 
 	my $tableName = $self->table_prefix . $self->collection;
 
@@ -144,8 +169,8 @@ sub list
 	# ------ Filtering and Ordering -------------------
 
 
-	$logger->debug( '======> filtering hash' );
-	$logger->debug( $filterstr );
+	#$logger->debug( '======> filtering hash' );
+	#$logger->debug( $filterstr );
 
 	my $filters =  from_json( $filterstr );
 	my $sql_filters = "";
@@ -154,12 +179,12 @@ sub list
 	my %filters = %{ $filters };
 
 
-	$logger->debug( dump( %filters ) );
+	#$logger->debug( dump( %filters ) );
 
 	foreach my $key (%filters) {
 			if ( defined( $filters{$key} ) ) {
 
-				$logger->debug( $key );
+				#$logger->debug( $key );
 
 					my $string = $filters{$key};
 					$string=~ s/'//g;
@@ -191,19 +216,31 @@ sub list
 	}
 	# ------ Filtering and Ordering -------------------
 
-	my $dbh = $API->dbh;
-
 	my $strSQLstartWhere = ' 1 = 1 ';
 	if ( defined(  $relationalColumn ) ) {
 			$strSQLstartWhere = '( "'.$relationalColumn.'" IN ('.$relational_id.') ) ';
 	}
 
-	my $totalCount = 0;
-	my $sth = $dbh->prepare( 'SELECT COUNT('.$self->primary_key.') as total_count FROM '.$tableName.' WHERE '.$strSQLstartWhere.' ' . $sql_filters . ';', );
-	$sth->execute() or return { error => $sth->errstr };
-	while ( my $record = $sth->fetchrow_hashref())
+	my $dbh = $API->dbh;
+	my $sth;
+
+	my $totalCount = '';
+	if ( $posStart == 0 )
 	{
-			$totalCount = $record->{"total_count"};
+		# if is necessary to count rows considering some filters
+		if ( length($sql_filters) > 1 ) {
+			$sth = $dbh->prepare( 'SELECT COUNT('.$self->primary_key.') as total_count FROM '.$tableName.' WHERE '.$strSQLstartWhere.' ' . $sql_filters . ';', );
+		}
+		else
+		{ # if not
+			# faster query
+			$sth = $dbh->prepare( "SELECT reltuples::bigint AS total_count FROM pg_class where relname='".$tableName."';", );
+		}
+		$sth->execute() or return { error => $sth->errstr };
+		while ( my $record = $sth->fetchrow_hashref())
+		{
+				$totalCount = $record->{"total_count"};
+		}
 	}
 
 	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.'  WHERE '.$strSQLstartWhere.' ' . $sql_filters . ' '. $sql_ordering . ' ';
@@ -221,14 +258,10 @@ sub list
 
 	#    $strSQL = $strSQL .  " LIMIT $nRegPag OFFSET $nCurrentPag ";
 	#}
-
-
 	#$logger->debug( '======> Built SQL string' );
 	#$logger->debug( $strSQL );
-
-
 	$sth = $dbh->prepare( $strSQL, );
-	$sth->execute() or return { error => $sth->errstr . ' ----------- '.$strSQL };
+	$sth->execute() or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL  };
 
 	my @records_basic;
 	my @records_native;
@@ -334,7 +367,7 @@ sub read
 	my $dbh = $API->dbh;
 	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.' WHERE '.$primaryKey.' = ?';
 	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( $str_id ) or return { error => $sth->errstr . ' ----------- '.$strSQL };
+	$sth->execute( $str_id ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL };
 
 	if ( $sth->rows == 0 ) {
 			return {
@@ -416,7 +449,7 @@ sub create
 	';
 
 	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( @sql_values ) or return { error => $sth->errstr . " --------- ".$strSQL };
+	$sth->execute( @sql_values ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL . "\nPlaceholder values:\n" . dump(@sql_values)};
 	my $record_id = 0;
 	while ( my $record = $sth->fetchrow_hashref())
 	{
@@ -485,7 +518,7 @@ sub update{
 	my $dbh = $API->dbh;
 	my $strSQL = 'UPDATE '.$tableName.' SET ' . substr($sql_setcolumns, 0, -2) . ' WHERE "'.$primaryKey.'" IN ('.$item_id.')';
 	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( @sql_values ) or return { error => $sth->errstr . " --------- ".$strSQL . " --- " . dump(@sql_values) . " ----- " . $item_id };
+	$sth->execute( @sql_values ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL . "\nPlaceholder values:\n" . dump(@sql_values) };
 	if ( $sth->rows == 0 ) {
 			return {
 				error => 'resource_not_found',

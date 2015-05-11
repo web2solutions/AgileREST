@@ -17,6 +17,14 @@ sub startup {
   my $app = shift;
   #my $self = shift;
 
+  #$app->config(hypnotoad => {
+  #  listen => ['http://*:3000']
+  #  #,accepts => 100 # default 1000 Maximum number of connections a worker is allowed to accept before stopping gracefully and then getting replaced with a newly started worker
+  #  #,clients => 100 # default 1000 Maximum number of concurrent connections each worker process is allowed to handle
+  #  ,proxy => 1
+  #  ,workers => 10 # default 4
+  #});
+
 
   # mv public lib/AgileRest/
   # mv templates lib/AgileRest/
@@ -303,6 +311,12 @@ sub startup {
     controller => 'database',
     action => 'map'
   );
+
+  $routes->get('/database/getmodel')->to(
+    controller => 'database',
+    action => 'model'
+  );
+
 
   # ==== HELPERS end points
 

@@ -46,18 +46,20 @@ sub auth {
 	my $origin_status = "";
 
 	my $token = "";
-	my $first_name = "";
-	my $last_name = "";
+	my $name = "";
+	#my $last_name = "";
 	my $title = "";
 	my $is_new_token = 0;
 	my $date_creation = 0;
 	my $date_expiration = 0;
 
   my $person_id = undef;
-	my $group_id = undef;
+	my $group = undef;
   my $company_id = undef;
   my $company_branch_id = undef;
   my $person_type = undef;
+  my $storage_quota = 0;
+  my $time_zone = 'America/Sao_Paulo';
 
   my $response = undef;
 	my $strSQLcreateToken = '';
@@ -91,16 +93,18 @@ sub auth {
 		if ( $user_salt_pass ne $salt_api_secret) {
 			return $self->unauthorized( "invalid password" );
 		}
-		if ( $record->{"status"} ne 'Active') {
-			return $self->unauthorized( $record->{"status"} . " user")
+		if ( $record->{"status"} ne 1) {
+			return $self->unauthorized( " user deactivated")
 		}
 		$person_id = $record->{"person_id"};
-		$first_name = $record->{"first_name"};
-		$last_name = $record->{"last_name"};
+		$name = $record->{"name"};
+		#$last_name = $record->{"last_name"};
 		$title = $record->{"title"};
-		$group_id = $record->{"group_id"};
+		$group = $record->{"group"};
     $company_id = $record->{"company_id"};
     $company_branch_id = $record->{"company_branch_id"};
+    $storage_quota = $record->{storage_quota};
+    $time_zone = $record->{time_zone};
 	}
 
   $person_type = '';
@@ -141,8 +145,8 @@ sub auth {
 	else
 	{
 		my $auth_data = {
-			first_name =>	$first_name,
-			last_name =>	$last_name,
+			name =>	$name,
+			#last_name =>	$last_name,
 			username => $username,
 			token => $token,
 			date_expiration => $date_expiration,
@@ -150,11 +154,12 @@ sub auth {
 			origin => $Origin,
 			client_session_id => $person_id,
 			person_id => $person_id,
-      person_type => $person_type,
-			group_id => $group_id,
+      storage_quota => $storage_quota,
+			group => $group,
       company_id => $company_id,
       company_branch_id => $company_branch_id,
-      person_type => $person_type
+      time_zone => $time_zone
+
 		};
 
     $response = {

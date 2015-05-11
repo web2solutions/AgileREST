@@ -11,8 +11,12 @@ sub list {
   {
     return $self->unauthorized( $access_granted_message );
   }
+
+
   my $app = $self->app;
+
   my $logger = $self->logger;
+  #$logger->debug( 'inside list.');
   my $transaction = $self->tx;
   my $req = $transaction->req;
   $API->branch( $req->headers->header('X-branch') || 'test' );
@@ -20,8 +24,17 @@ sub list {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
+
+  my $count = $self->param('count') || 50;
+  my $posStart = $self->param('posStart') || 0;
+  my $columns = $self->param('columns') || '';
+
+  # to be used with redis for caching responses in the future
+  # my $identifier = sha256_hex( 'cache_table_' . $self->stash('collection') . '_' . $count. '_' . '_' . $posStart . '_' . '_' . $columns . '_' );
+
   my $collection_data = $model->list( {
     count => $self->param('count'),
     posStart => $self->param('posStart'),
@@ -72,7 +85,8 @@ sub read {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
   my $item_data = $model->read( {
     columns => $self->param('columns'),
@@ -127,7 +141,8 @@ sub create {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
   my $hash = $self->param('hash') || return $self->fail( 'hash is a mandatory parameter for this end point' );
   my $item_data = $model->create( {
@@ -167,7 +182,8 @@ sub update {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
   my $hash = $self->param('hash') || return $self->fail( 'hash is a mandatory parameter for this end point' );
   my $item_id = $self->stash( $model->primary_key ) || return $self->fail( $model->primary_key. ' parameter is missing on stash' );
@@ -209,7 +225,8 @@ sub del {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
 
   my $item_id = $self->stash( $model->primary_key ) || return $self->fail( $model->primary_key. ' parameter is missing on stash' );
@@ -259,7 +276,8 @@ sub doc {
     API => $API,
     item => $self->stash('item'),
     collection => $self->stash('collection'),
-    logger => $logger
+    logger => $logger,
+    controller => $self
   );
   my $table_schema = $model->schema;
   my $tableName = $model->table_prefix . $model->collection;
@@ -287,7 +305,7 @@ sub doc {
   # Do something after the transaction has been finished
   $self->on(finish => sub {
     my $c = shift;
-    
+
     $API->trackAccessLog( $c );
   });
 }

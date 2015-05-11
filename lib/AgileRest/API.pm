@@ -38,6 +38,11 @@ sub sqlToDhxFormType{
 	elsif ( $sql_type eq 'date' ) {
 		return 'calendar';
 	}
+	elsif ( $sql_type eq 'timestamp without time zone' ) {
+		return 'calendar';
+	}
+
+
 	return '';
 }
 
@@ -59,7 +64,10 @@ sub sqlToDhxFormMask{
 		return '';
 	}
 	elsif ( $sql_type eq 'date' ) {
-		return '';
+		return 'date';
+	}
+	elsif ( $sql_type eq 'timestamp without time zone' ) {
+		return 'time';
 	}
 	return '';
 }
@@ -82,7 +90,10 @@ sub sqlToDhxGridType{
 		return 'txttxt';
 	}
 	elsif ( $sql_type eq 'date' ) {
-		return 'dhxCalendarA';
+		return 'dhxCalendar';
+	}
+	elsif ( $sql_type eq 'timestamp without time zone' ) {
+		return 'dhxCalendar';
 	}
 	return '';
 }
@@ -105,6 +116,9 @@ sub sqlToDHTMLXsort{
 		return 'str';
 	}
 	elsif ( $sql_type eq 'date' ) {
+		return 'date';
+	}
+	elsif ( $sql_type eq 'timestamp without time zone' ) {
 		return 'date';
 	}
 	return 'str';
@@ -141,9 +155,26 @@ sub get_table_schema{
 	my @columns;
 	$table = $table || die "please provide a table name" ;
 
-	my $strSQL = "select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = ? ORDER BY ORDINAL_POSITION ASC";
+	my $strSQL = "SELECT
+    cols.column_name,cols.table_schema,cols.table_name,cols.column_name,cols.ordinal_position,cols.data_type,cols.character_maximum_length,
+    (
+        SELECT
+            pg_catalog.col_description(c.oid, cols.ordinal_position::int)
+        FROM
+            pg_catalog.pg_class c
+        WHERE
+            c.oid     = (SELECT '".$table."'::regclass::oid) AND
+            c.relname = cols.table_name
+    ) as column_comment
+
+		FROM
+				information_schema.columns cols
+		WHERE
+				cols.table_catalog = 'juris' AND
+				cols.table_name    = '".$table."'    AND
+				cols.table_schema  = 'public';";
 	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( $table ) or die $sth->errstr;
+	$sth->execute(  ) or die $sth->errstr;
 	while ( my $record = $sth->fetchrow_hashref())
 	{
 		my $type = '';
@@ -157,6 +188,7 @@ sub get_table_schema{
 		}
 		my $column = {
 				name => $record->{column_name},
+				description => $record->{column_comment},
 				type => $type,
 				maxlenght => $record->{character_maximum_length},
 				position => $record->{ordinal_position}
