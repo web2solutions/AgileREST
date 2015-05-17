@@ -237,6 +237,18 @@ sub model {
       $field->{maxLength} = $r->{maxlength};
       $field->{label} = $r->{dhtmlx_grid_header};
 
+      if ( $field->{type}  eq 'calendar') {
+        $field->{dateFormat} = '%Y-%m-%d';
+        #$field->{enableTime} = \0;
+        $field->{readonly} = \1;
+        #
+      }
+
+
+
+
+      #dateFormat:"%Y-%m-%d %H:%i"
+
       #$logger->debug( $self->dumper( $field ) );
 
       push @fields, $field;
