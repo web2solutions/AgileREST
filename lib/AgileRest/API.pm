@@ -41,6 +41,9 @@ sub sqlToDhxFormType{
 	elsif ( $sql_type eq 'timestamp without time zone' ) {
 		return 'calendar';
 	}
+	elsif ( $sql_type eq 'primary_key' ) {
+		return 'hidden';
+	}
 
 
 	return '';
@@ -209,7 +212,7 @@ sub get_table_foreing_keys{
 	my @keys;
 	my $dbh = $self->dbh;
 	my $strSQL = "SELECT
-				tc.constraint_name, tc.table_name, kcu.column_name,
+				tc.constraint_name, tc.table_name, kcu.column_name, kcu.column_name AS name,
 				ccu.table_name AS foreign_table_name,
 				ccu.column_name AS foreign_column_name
 		FROM
