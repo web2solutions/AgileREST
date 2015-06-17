@@ -44,6 +44,11 @@ sub sqlToDhxFormType{
 	elsif ( $sql_type eq 'primary_key' ) {
 		return 'hidden';
 	}
+	elsif ( $sql_type eq 'boolean' ) {
+		return 'btn2state';
+	}
+
+	#
 
 
 	return '';
@@ -98,6 +103,9 @@ sub sqlToDhxGridType{
 	elsif ( $sql_type eq 'timestamp without time zone' ) {
 		return 'dhxCalendar';
 	}
+	elsif ( $sql_type eq 'boolean' ) {
+		return 'ch';
+	}
 	return '';
 }
 
@@ -124,6 +132,9 @@ sub sqlToDHTMLXsort{
 	elsif ( $sql_type eq 'timestamp without time zone' ) {
 		return 'date';
 	}
+	elsif ( $sql_type eq 'boolean' ) {
+		return 'int';
+	}
 	return 'str';
 }
 
@@ -141,6 +152,7 @@ sub get_tables{
 					and ( $record->{table_name} ne 'agile_rest_column' )
 					and ( $record->{table_name} ne 'api_access_token' )
 					and ( $record->{table_name} ne 'api_allowed_origin' )
+					and ( $record->{table_name} ne 'api_users' )
 				)
 		{
 			push @tables, $record->{table_name};
@@ -235,7 +247,13 @@ sub get_table_foreing_keys{
 sub normalizeColumnNames
 {
 
-	my($self, $strColumns, $packageColumns) = @_;
+	my($self, $strColumns, $packageColumns, $logger) = @_;
+
+	#$logger->debug( '>>>>>>>>>>>>'. $strColumns );
+	#$logger->debug( '>>>>>>>>>>>>'. $packageColumns );
+
+
+
 	my @columns = split(/,/, $strColumns);
 	$strColumns = '';
 	for(@columns)
