@@ -53,13 +53,16 @@ sub auth {
 	my $date_creation = 0;
 	my $date_expiration = 0;
 
-  my $person_id = undef;
+  my $entity_id = undef;
+  my $api_user_id = undef;
 	my $group = undef;
   my $company_id = undef;
   my $company_branch_id = undef;
   my $person_type = undef;
   my $storage_quota = 0;
   my $time_zone = 'America/Sao_Paulo';
+  my $is_admin = \0;
+  my $is_customer = \1;
 
   my $response = undef;
 	my $strSQLcreateToken = '';
@@ -81,7 +84,7 @@ sub auth {
 		return $self->unauthorized( 'origin not allowed');
 	}
 
-	my $strSQLsecret = 'SELECT * FROM persons WHERE username = ?';
+	my $strSQLsecret = 'SELECT * FROM api_users WHERE username = ?';
 	$sth = $dbh->prepare( $strSQLsecret, );
 	$sth->execute( $username ) or $self->fail( $sth->errstr );
 	while ( my $record = $sth->fetchrow_hashref())
@@ -96,16 +99,32 @@ sub auth {
 		if ( $record->{"status"} ne 1) {
 			return $self->unauthorized( " user deactivated")
 		}
-		$person_id = $record->{"person_id"};
-		$name = $record->{"name"};
-		#$last_name = $record->{"last_name"};
-		$title = $record->{"title"};
-		$group = $record->{"group"};
-    $company_id = $record->{"company_id"};
-    $company_branch_id = $record->{"company_branch_id"};
-    $storage_quota = $record->{storage_quota};
-    $time_zone = $record->{time_zone};
+
+
+    $api_user_id = $record->{"api_user_id"};
+		$entity_id = $record->{"entity_id"};
+    $is_admin = $record->{"is_admin"};
+    $is_customer = $record->{"is_customer"};
+
 	}
+
+
+
+
+  my $strSQLentity = 'SELECT * FROM entidades WHERE entidade_id = ?';
+	$sth = $dbh->prepare( $strSQLentity, );
+	$sth->execute( $entity_id ) or $self->fail( $sth->errstr );
+	while ( my $record = $sth->fetchrow_hashref())
+	{
+		  $name = $record->{"nome"};
+      $title = $record->{"tratamento"};
+      $group = $record->{"grupo_id"};
+      $company_id = $record->{"empresa_id"};
+      #$company_branch_id = $record->{"company_branch_id"};
+      #$storage_quota = $record->{storage_quota};
+      $time_zone = $record->{time_zone};
+	}
+
 
   $person_type = '';
 
@@ -114,9 +133,9 @@ sub auth {
 		return $self->unauthorized( "invalid username");
 	}
 
-	my $strSQLtoken = 'SELECT * FROM api_access_token WHERE person_id = ? AND active_status = 1 AND date_expiration > '.( time * 1000 ).'';
+	my $strSQLtoken = 'SELECT * FROM api_access_token WHERE entity_id = ? AND active_status = 1 AND date_expiration > '.( time * 1000 ).'';
 	$sth = $dbh->prepare( $strSQLtoken, );
-	$sth->execute( $person_id ) or $self->fail( $sth->errstr );
+	$sth->execute( $entity_id ) or $self->fail( $sth->errstr );
 	while ( my $record = $sth->fetchrow_hashref())
 	{
 		$token_status = "ok";
@@ -128,12 +147,12 @@ sub auth {
 
 	if ( $token_status eq "" )
   {
-		$token = sha256_hex( $person_id . "_" . ( time * 1000 ));
+		$token = sha256_hex( $entity_id . "_" . ( time * 1000 ));
 		$date_creation = time * 1000;
 		$date_expiration = $date_creation + 86400000;
-    $strSQLcreateToken = 'INSERT INTO api_access_token( person_id, token, date_creation, date_expiration, active_status ) VALUES( ?, ?, ?, ?, 1);';
+    $strSQLcreateToken = 'INSERT INTO api_access_token( entity_id, token, date_creation, date_expiration, active_status ) VALUES( ?, ?, ?, ?, 1);';
 		$sth = $dbh->prepare( $strSQLcreateToken, );
-		$sth->execute( $person_id, $token, $date_creation, $date_expiration ) or $self->fail( $sth->errstr );
+		$sth->execute( $entity_id, $token, $date_creation, $date_expiration ) or $self->fail( $sth->errstr );
 		$is_new_token = 1;
 		$auth_status = "connected";
 		$token_status = "ok";
@@ -146,20 +165,20 @@ sub auth {
 	{
 		my $auth_data = {
 			name =>	$name,
-			#last_name =>	$last_name,
 			username => $username,
 			token => $token,
 			date_expiration => $date_expiration,
 			auth_status => $auth_status,
 			origin => $Origin,
-			client_session_id => $person_id,
-			person_id => $person_id,
+			client_session_id => $entity_id,
+			entity_id => $entity_id,
+      api_user_id => $api_user_id,
       storage_quota => $storage_quota,
 			group => $group,
       company_id => $company_id,
-      company_branch_id => $company_branch_id,
+      is_admin => $is_admin,
+      is_customer => $is_customer,
       time_zone => $time_zone
-
 		};
 
     $response = {
