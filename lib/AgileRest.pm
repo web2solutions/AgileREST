@@ -312,11 +312,24 @@ sub startup {
     action => 'map'
   );
 
-  $routes->get('/database/getmodel')->to(
+  $routes->get('/database/generatemodel')->to(
     controller => 'database',
     action => 'model'
   );
 
+  $routes->get('/database/getmodel')->to(
+        controller => 'database',
+        action => 'get_model',
+  );
+
+
+
+  $routes->get('/agile_rest_column')->to(
+        controller => 'generic',
+        action => 'list',
+        collection => 'agile_rest_column',
+        item => 'column'
+  );
 
   # ==== HELPERS end points
 
