@@ -16,7 +16,7 @@ sub list {
   my $app = $self->app;
 
   my $logger = $self->logger;
-  #$logger->debug( 'inside list.');
+  $logger->debug( 'inside list.');
   my $transaction = $self->tx;
   my $req = $transaction->req;
   $API->branch( $req->headers->header('X-branch') || 'test' );
@@ -31,6 +31,8 @@ sub list {
   my $count = $self->param('count') || 50;
   my $posStart = $self->param('posStart') || 0;
   my $columns = $self->param('columns') || '';
+
+   #$logger->debug( $columns );
 
   # to be used with redis for caching responses in the future
   # my $identifier = sha256_hex( 'cache_table_' . $self->stash('collection') . '_' . $count. '_' . '_' . $posStart . '_' . '_' . $columns . '_' );

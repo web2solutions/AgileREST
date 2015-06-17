@@ -75,19 +75,42 @@ has 'schema' => (
 sub BUILD {
 	my $self = shift;
 	my $logger = $self->logger;
-	#$logger->debug( 'inside build.');
+	#
 	my $tname = $self->table_prefix . $self->collection;
+
 	my $default_columns = $self->controller->redis->get( 'juris_'.$tname. '_default_columns') || undef;
+	$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
+	$logger->debug( 'XXXXX on redis ' . $default_columns);
+	$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
+
 	my $primary_key = $self->controller->redis->get( 'juris_'.$tname. '_primary_key') || undef;
 	my $columns = $self->controller->redis->get( 'juris_'.$tname. '_columns') || undef;
-	if ( defined($default_columns) and defined($primary_key) and defined($columns) ) {
-		$self->default_columns( $default_columns );
-		$self->primary_key( $primary_key );
+
+	#if ( defined($default_columns) and defined($primary_key) and defined($columns) ) {
+	#	$logger->debug( 'XXXX got from redis ');
+
+	#	my $columnsObj = from_json( $default_columns );
+	#	$default_columns = '';
+
+
+	#	for( @{$columnsObj} )
+	#	{
+	#		$logger->debug( $_->{name});
+	#		$default_columns = $default_columns . $_->{name} . ',' if $_->{name} ne $primary_key;
+	#	}
+	#	$default_columns = $default_columns . $primary_key;
+	#	$logger->debug( $default_columns);
+
+	#	$self->default_columns( $default_columns );
+
+
+	#	self->primary_key( $primary_key );
 		#$logger->debug( $self->controller->dumper( $columns ) );
-		$self->columns( from_json( $columns ) );
-	}
-	else
-	{
+	#	$self->columns( from_json( $columns ) );
+	#}
+	#else
+	#{
+	  $logger->debug( 'XXXXX lets get on schema ');
 		my $table_schema = $self->API->get_table_schema( $tname );
 		$primary_key = $table_schema->{primary_key};
 		$default_columns = '';
@@ -99,10 +122,13 @@ sub BUILD {
 		$self->default_columns( $default_columns );
 		$self->primary_key( $primary_key );
 		$self->columns( $table_schema->{columns} );
+
+		$logger->debug( 'XXXX columns ' . $columns);
+
 		my $redis_res_default_columns = $self->controller->redis->set( 'juris_'.$tname. '_default_columns' => $columns);
 		my $redis_res_primary_key = $self->controller->redis->set( 'juris_'.$tname. '_primary_key' => $primary_key);
 		my $redis_res_columns = $self->controller->redis->set( 'juris_'.$tname. '_columns' =>  to_json( $table_schema->{columns}) );
-	}
+	#}
 }
 
 
@@ -123,6 +149,10 @@ sub list
 
 	# read conf or assume defaults
 	my $columns = $conf->{columns} || $self->default_columns;
+
+
+
+
 	my $filterstr = $conf->{filter} || '{}';
 	my $orderstr = $conf->{order} || '{}';
 	my $filter_operator = $conf->{filter_operator} || 'and';
@@ -152,7 +182,25 @@ sub list
 	my $strColumns = $columns || $defaultColumns;
 	$strColumns=~ s/'//g;
 	my @columns = split(/,/, $strColumns);
-	$strColumns = $self->API->normalizeColumnNames( $strColumns, $defaultColumns );
+
+	$logger->debug('xxxxxxxxxxxxxx' );
+	$logger->debug( '$strColumns =====>  '. $strColumns );
+	$logger->debug( 'xxxxxxxxxxxxxx' );
+	$logger->debug( 'xxxxxxxxxxxxxx' );
+	$logger->debug( '$defaultColumns =====>  ' . $defaultColumns );
+	$logger->debug( 'xxxxxxxxxxxxxx');
+	$logger->debug( 'xxxxxxxxxxxxxx');
+	$logger->debug( 'xxxxxxxxxxxxxx');
+  $logger->debug( 'xxxxxxxxxxxxxx');
+  $logger->debug( 'xxxxxxxxxxxxxx');
+  $logger->debug( 'xxxxxxxxxxxxxx');
+
+
+	$strColumns = $self->API->normalizeColumnNames( $strColumns, $defaultColumns, $logger );
+
+
+
+
 
 
 	if ( defined( $relationalColumn ) )
