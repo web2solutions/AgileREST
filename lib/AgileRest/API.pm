@@ -153,6 +153,10 @@ sub get_tables{
 					and ( $record->{table_name} ne 'api_access_token' )
 					and ( $record->{table_name} ne 'api_allowed_origin' )
 					and ( $record->{table_name} ne 'api_users' )
+					and ( $record->{table_name} ne 'api_database_version' )
+
+					#
+
 				)
 		{
 			push @tables, $record->{table_name};
