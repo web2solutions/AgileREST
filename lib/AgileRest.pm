@@ -4,12 +4,29 @@ use Mojo::Log;
 use Mojo::Redis2;
 use Mojolicious::Plugin::TtRenderer::Engine;
 use AgileRest::API;
-
+use DBIx::Connector;
 use File::Basename 'dirname';
 use File::Spec::Functions 'catdir';
 
 # Every CPAN module needs a version
 #our $VERSION = '1.0';
+
+has dbh => sub {
+        my $self = shift;
+
+        my $data_source = "dbi:Pg:dbname=juris;host=localhost";
+        my $user = "xxxx";
+        my $password = "xxxx";
+
+        my $dbh = DBI->connect(
+            $data_source,
+            $user,
+            $password,
+            {'pg_enable_utf8' => 1, AutoCommit => 1}
+        );
+
+        return $dbh;
+};
 
 
 # This method will run once at server start
@@ -77,6 +94,9 @@ sub startup {
 
 
 
+
+  my $dbh = $app->db;
+
   # >>>>>>>============= END PLUGINS =============<<<<<<<<<<
 
 
@@ -85,7 +105,7 @@ sub startup {
   $app->types->type( json => 'application/json; charset=utf-8' );
 
   # create API object
-  my $API = AgileRest::API->new( dbh => $app->db );
+  my $API = AgileRest::API->new( dbh => $app->dbh  );
   $app->helper(
       API => sub{
         return $API;
@@ -334,7 +354,7 @@ sub startup {
   # ==== HELPERS end points
 
   # >>>>>>>>>>>> Generic END POINTS
-  my $dbh = $app->db;
+  #my $dbh = $app->db;
   my $strSQL = 'SELECT table_name FROM agile_rest_table ORDER BY table_name ASC';
 	my $sth = $dbh->prepare( $strSQL, );
 	$sth->execute() or return { error => $sth->errstr . ' ----------- '.$strSQL };
