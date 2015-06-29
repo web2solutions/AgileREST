@@ -183,24 +183,7 @@ sub list
 	$strColumns=~ s/'//g;
 	my @columns = split(/,/, $strColumns);
 
-	$logger->debug('xxxxxxxxxxxxxx' );
-	$logger->debug( '$strColumns =====>  '. $strColumns );
-	$logger->debug( 'xxxxxxxxxxxxxx' );
-	$logger->debug( 'xxxxxxxxxxxxxx' );
-	$logger->debug( '$defaultColumns =====>  ' . $defaultColumns );
-	$logger->debug( 'xxxxxxxxxxxxxx');
-	$logger->debug( 'xxxxxxxxxxxxxx');
-	$logger->debug( 'xxxxxxxxxxxxxx');
-  $logger->debug( 'xxxxxxxxxxxxxx');
-  $logger->debug( 'xxxxxxxxxxxxxx');
-  $logger->debug( 'xxxxxxxxxxxxxx');
-
-
 	$strColumns = $self->API->normalizeColumnNames( $strColumns, $defaultColumns, $logger );
-
-
-
-
 
 
 	if ( defined( $relationalColumn ) )
@@ -459,56 +442,125 @@ sub create
 	my $sql_columns = "";
 	my $sql_placeholders = "";
 	my @sql_values;
+	my @record_id;
+	my $strSQL = '';
+	my @added_records;
 
-	my %hash = %{ $hash };
 
 	my $dbh = $API->dbh;
 
-	foreach my $key (%hash)
+
+	if ( ref($hash) eq 'HASH' )
 	{
-			if ( defined( $key ) )
+	  my %hash = %{ $hash };
+		my $added_record = {};
+		foreach my $key (%hash)
+		{
+				if ( defined( $key ) )
+				{
+						if ( defined( $hash{$key} ) )
+						{
+								if ( index($defaultColumns, '"'.$key.'"') != -1 )
+								{
+										if ( $key ne $primaryKey) {
+												if ( index($sql_columns, '"' .$key.'"') < 0 )
+												{
+														$sql_columns = $sql_columns .'"' .$key.'", ';
+														$sql_placeholders  = $sql_placeholders . '?, ';
+														push @sql_values, $hash{$key};
+
+														$added_record->{$key} = $hash{$key};
+												}
+										}
+								}
+						}
+				}
+		}
+
+
+		if( length($sql_columns) < 2)
+		{
+			return { error => 'please propvide valid column names' }
+		}
+
+		$strSQL = 'INSERT INTO
+			'.$tableName.'(' . substr($sql_columns, 0, -2) . ')
+			VALUES(' . substr($sql_placeholders, 0, -2) . ')
+			RETURNING '.$primaryKey.';
+		';
+
+		my $sth = $dbh->prepare( $strSQL, );
+		$sth->execute( @sql_values ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL . "\nPlaceholder values:\n" . dump(@sql_values)};
+		while ( my $record = $sth->fetchrow_hashref())
+		{
+				#$record_id = $record->{$primaryKey};
+				push @record_id, $record->{$primaryKey};
+				$added_record->{$primaryKey} = $record->{$primaryKey};
+		}
+
+
+		push @added_records, $added_record;
+	}
+	elsif ( ref($hash) eq 'ARRAY' ) {
+		my @records = @{ $hash };
+
+		for( @records )
+		{
+			my %hash = %{ $_ };
+			my $added_record = {};
+			foreach my $key (%hash)
 			{
-					if ( defined( $hash{$key} ) )
+					if ( defined( $key ) )
 					{
-							if ( index($defaultColumns, '"'.$key.'"') != -1 )
+							if ( defined( $hash{$key} ) )
 							{
-									if ( $key ne $primaryKey) {
-											if ( index($sql_columns, '"' .$key.'"') < 0 )
-											{
-													$sql_columns = $sql_columns .'"' .$key.'", ';
-													$sql_placeholders  = $sql_placeholders . '?, ';
-													push @sql_values, $hash{$key};
+									if ( index($defaultColumns, '"'.$key.'"') != -1 )
+									{
+											if ( $key ne $primaryKey) {
+													if ( index($sql_columns, '"' .$key.'"') < 0 )
+													{
+															$sql_columns = $sql_columns .'"' .$key.'", ';
+															$sql_placeholders  = $sql_placeholders . '?, ';
+															push @sql_values, $hash{$key};
+															$added_record->{$key} = $hash{$key};
+													}
 											}
 									}
 							}
 					}
 			}
+
+			if( length($sql_columns) < 2)
+			{
+				return { error => 'please propvide valid column names' }
+			}
+
+			$strSQL = 'INSERT INTO
+				'.$tableName.'(' . substr($sql_columns, 0, -2) . ')
+				VALUES(' . substr($sql_placeholders, 0, -2) . ')
+				RETURNING '.$primaryKey.';
+			';
+
+			my $sth = $dbh->prepare( $strSQL, );
+			$sth->execute( @sql_values ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL . "\nPlaceholder values:\n" . dump(@sql_values)};
+			while ( my $record = $sth->fetchrow_hashref())
+			{
+					push @record_id, $record->{$primaryKey};
+					$added_record->{$primaryKey} = $record->{$primaryKey};
+			}
+
+			push @added_records, $added_record;
+		}
 	}
 
-	if( length($sql_columns) < 2)
-	{
-		return { error => 'please propvide valid column names' }
-	}
 
-	my $strSQL = 'INSERT INTO
-		'.$tableName.'(' . substr($sql_columns, 0, -2) . ')
-		VALUES(' . substr($sql_placeholders, 0, -2) . ')
-		RETURNING '.$primaryKey.';
-	';
-
-	my $sth = $dbh->prepare( $strSQL, );
-	$sth->execute( @sql_values ) or return { error => $sth->errstr . "\nSQL statement:\n".$strSQL . "\nPlaceholder values:\n" . dump(@sql_values)};
-	my $record_id = 0;
-	while ( my $record = $sth->fetchrow_hashref())
-	{
-			$record_id = $record->{$primaryKey};
-	}
 
 	return {
 			status => 'success',
-			response => 'Item '.$record_id.' added on ' . $self->collection,
+			response => 'Item '.join(',', @record_id).' added on ' . $self->collection,
 			sql => $strSQL,
-			''.$primaryKey.'' => $record_id,
+			''.$primaryKey.'' => join(',', @record_id),
+			added_records => [@added_records],
 			place_holders_dump => dump(@sql_values)
 	};
 }
@@ -543,19 +595,28 @@ sub update{
 	my %hash = %{ $hash };
 	foreach my $key (%hash)
 	{
-			if ( defined( $hash{$key} ) )
+			if ( defined( $key ) )
 			{
-					if ( index($defaultColumns, '"'.$key.'"') != -1 )
-					{
-							if ( $key ne $primaryKey) {
-									if ( index($sql_setcolumns, '"' .$key.'"') < 0 )
-									{
-											$sql_setcolumns = $sql_setcolumns .'"'. $key .'" = ?, ';
-											push @sql_values, $hash{$key};
-									}
-							}
-					}
+				if ( defined( $hash{$key} ) )
+				{
+						if ( index($defaultColumns, '"'.$key.'"') != -1 )
+						{
+								if ( $key ne $primaryKey) {
+										if ( index($sql_setcolumns, '"' .$key.'"') < 0 )
+										{
+												$sql_setcolumns = $sql_setcolumns .'"'. $key .'" = ?, ';
+												push @sql_values, $hash{$key};
+										}
+								}
+						}
+				}
+			}else
+			{
+				#$logger->debug( 'undefined -> ' . $key);
+
 			}
+
+
 	}
 
 	if( length($sql_setcolumns) < 2)
