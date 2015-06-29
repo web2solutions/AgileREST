@@ -81,7 +81,7 @@ sub auth {
 
 	if ( $origin_status eq "" )
 	{
-		return $self->unauthorized( 'origin not allowed');
+		return $self->unauthorized( 'origin '.$Origin.' not allowed');
 	}
 
 	my $strSQLsecret = 'SELECT * FROM api_users WHERE username = ?';
@@ -170,7 +170,7 @@ sub auth {
 			date_expiration => $date_expiration,
 			auth_status => $auth_status,
 			origin => $Origin,
-			client_session_id => $entity_id,
+			client_session_id => $entity_id . '_' . time,
 			entity_id => $entity_id,
       api_user_id => $api_user_id,
       storage_quota => $storage_quota,
