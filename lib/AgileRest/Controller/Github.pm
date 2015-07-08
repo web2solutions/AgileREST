@@ -86,9 +86,9 @@ sub hook {
   );
 
   my $mail = new Mail::SendEasy(
-    smtp => 'smtp.web2solutions.com.br',
-    user => 'eduardo@web2solutions.com.br',
-    pass => 'fuzzy24k',
+    smtp => 'xxx',
+    user => 'xxx',
+    pass => '',
     port => '587'
   );
   my $status = $mail->send(

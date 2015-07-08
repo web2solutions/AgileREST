@@ -314,42 +314,116 @@ sub startup {
 
 
   # ==== HELPERS end points
-  # github hook - notify changes on branches
-  $routes->post('/github/hook')->to(
-    controller => 'github',
-    action => 'hook'
-  );
+    # github hook - notify changes on branches
+    #$routes->post('/github/hook')->to(
+    #  controller => 'github',
+    #  action => 'hook'
+    #);
 
-  # authentication
-  $routes->post('/auth')->to(
-    controller => 'auth',
-    action => 'auth'
-  );
+    # authentication
+    $routes->post('/auth')->to(
+      controller => 'auth',
+      action => 'auth'
+    );
 
-  # map database and generate end points data
-  $routes->get('/database/map')->to(
-    controller => 'database',
-    action => 'map'
-  );
+    # map database and generate end points data
+    $routes->get('/database/map')->to(
+      controller => 'database',
+      action => 'map'
+    );
 
-  $routes->get('/database/generatemodel')->to(
-    controller => 'database',
-    action => 'model'
-  );
+    # generate model to be used on client
+    $routes->get('/database/generatemodel')->to(
+      controller => 'database',
+      action => 'model'
+    );
 
-  $routes->get('/database/getmodel')->to(
-        controller => 'database',
-        action => 'get_model',
-  );
+    # get model to be used on client
+    $routes->get('/database/getmodel')->to(
+          controller => 'database',
+          action => 'get_model',
+    );
 
 
 
-  $routes->get('/agile_rest_column')->to(
-        controller => 'generic',
-        action => 'list',
+    #===== agile_rest_table
+    $routes->get('/database/designer/table')->to(
+          controller => 'DBDesigner',
+          action => 'list',
+          collection => 'agile_rest_table',
+          item => 'table'
+    );
+
+    $routes->post('/database/designer/table')->to(
+      controller => 'DBDesigner',
+      action => 'create',
+       collection => 'agile_rest_table',
+      item => 'table'
+     );
+
+    $routes->get('/database/designer/table/:agile_rest_table_id')->to(
+       controller => 'DBDesigner',
+      action => 'read',
+      collection => 'agile_rest_table',
+     item => 'table'
+    );
+
+    $routes->put('/database/designer/table/:agile_rest_table_id')->to(
+      controller => 'DBDesigner',
+      action => 'update',
+      collection => 'agile_rest_table',
+      item => 'table'
+    );
+
+    $routes->delete('/database/designer/table/:agile_rest_table_id')->to(
+      controller => 'DBDesigner',
+      action => 'del',
+      collection => 'agile_rest_table',
+      item => 'table'
+    );
+
+
+    #====== agile_rest_column
+    $routes->get('/database/designer/table/:agile_rest_table_id/column')->to(
+      controller => 'DBDesigner',
+      action => 'list',
+      collection => 'agile_rest_column',
+      item => 'column'
+      ,relationalColumn => 'agile_rest_table_id'
+      ,grid_json_model => 'native'
+    );
+
+    $routes->get('/database/designer/table/:agile_rest_table_id/column/:agile_rest_column_id')->to(
+      controller => 'DBDesigner',
+      action => 'read',
+      collection => 'agile_rest_column',
+      item => 'column'
+      ,relationalColumn => 'agile_rest_table_id'
+    );
+
+    $routes->post('/database/designer/table/:agile_rest_table_id/column')->to(
+      controller => 'DBDesigner',
+      action => 'create',
+      collection => 'agile_rest_column',
+      item => 'column'
+      ,relationalColumn => 'agile_rest_table_id'
+    );
+
+    $routes->put('/database/designer/table/:agile_rest_table_id/column/:agile_rest_column_id')->to(
+        controller => 'DBDesigner',
+        action => 'update',
         collection => 'agile_rest_column',
         item => 'column'
-  );
+        ,relationalColumn => 'agile_rest_table_id'
+    );
+
+    $routes->delete('/database/designer/table/:agile_rest_table_id/column/:agile_rest_column_id')->to(
+        controller => 'DBDesigner',
+        action => 'del',
+        collection => 'agile_rest_column',
+        item => 'column'
+        ,relationalColumn => 'agile_rest_table_id'
+    );
 
   # ==== HELPERS end points
 
