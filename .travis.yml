@@ -1,12 +1,9 @@
 language: perl
 perl:
   - "5.20"
-  
 before_install:
-    - sudo apt-get install libgmp-dev
+	- sudo apt-get install libgmp-dev
     - cpanm Test::Pod # optional dependency
-	
-
 install:
 	- cpanm --quiet --installdeps --notest .
 #    - cpanm -v --installdeps --notest --mirror http://cpan.mirrors.travis-ci.org .
