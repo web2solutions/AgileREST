@@ -79,13 +79,13 @@ sub BUILD {
     #
     my $tname = $self->table_prefix . $self->collection;
 
-    my $default_columns = $self->controller->redis->get( 'juris_'.$tname. '_default_columns') || undef;
+    my $default_columns = '';#$self->controller->redis->get( 'juris_'.$tname. '_default_columns') || undef;
     #$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
     #$logger->debug( 'XXXXX on redis ' . $default_columns);
     #$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
 
-    my $primary_key = $self->controller->redis->get( 'juris_'.$tname. '_primary_key') || undef;
-    my $columns = $self->controller->redis->get( 'juris_'.$tname. '_columns') || undef;
+    my $primary_key = '';#$self->controller->redis->get( 'juris_'.$tname. '_primary_key') || undef;
+    my $columns = '';#$self->controller->redis->get( 'juris_'.$tname. '_columns') || undef;
 
     #if ( defined($default_columns) and defined($primary_key) and defined($columns) ) {
         #    $logger->debug( 'XXXX got from redis ');
@@ -237,7 +237,8 @@ sub list
 
 
     my $sql_ordering = ' ORDER BY '. $self->primary_key .' ASC';
-    my $order =  from_json( $orderstr );
+
+	my $order =  from_json( $orderstr );
     if ( defined( $order->{orderby} ) && defined( $order->{direction} ) )
     {
         my $column = $order->{orderby};
@@ -332,6 +333,7 @@ sub list
         }
         $row_basic->{data} = [@values];
         $row_collection->{data} = [@values];
+		$row_collection->{primary_key} = [@values];
 
         push @records_basic, $row_basic;
         push @records_native, $row_native;
@@ -355,6 +357,7 @@ sub list
         response => 'Succcess',
         total_count => $totalCount,
         pos => $posStart
+		#,primary_key => $self->primary_key
     };
 
     if ( $API->branch ne 'production') {
@@ -438,6 +441,8 @@ sub create
     $defaultColumns = $self->API->normalizeColumnNames( $defaultColumns, $defaultColumns );
     my $action = $conf->{action}
 	  || return { error => 'please provide an action' };
+	my $app = $conf->{app}
+	  || return { error => 'please provide an app' };
     my $hashStr = $conf->{hash}
 	  || return { error => 'please provide a hash of properties' };
     my $json_bytes = encode('UTF-8', $hashStr);
@@ -492,19 +497,74 @@ sub create
 			  CREATE TABLE '.$table_name.'
 			  (
 				'.$table_name.'_id serial NOT NULL,
+				t_rex_user_id integer NOT NULL default 0,
 				CONSTRAINT '.$table_name.'_pkey PRIMARY KEY ('.$table_name.'_id)
 			  );
             ';
             my $sth = $dbh->prepare( $strSQLcreate, );
             $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLcreate};
+
+			my $routes = $app->routes;
+
+			my $primary_key = $table_name.'_id';
+			my $tem_name = substr($table_name, 0, -1);
+
+			$routes->get('/'.$table_name.'')->to(
+			  controller => 'generic',
+			  action => 'list',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('get_'.$table_name);
+
+			$routes->post('/'.$table_name.'')->to(
+			  controller => 'generic',
+			  action => 'create',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('post_'.$table_name);
+
+			$routes->get('/'.$table_name.'/:'.$primary_key.'')->to(
+			  controller => 'generic',
+			  action => 'read',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('geti_'.$table_name);
+
+			$routes->put('/'.$table_name.'/:'.$primary_key.'')->to(
+			  controller => 'generic',
+			  action => 'update',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('put_'.$table_name);
+
+			$routes->delete('/'.$table_name.'/:'.$primary_key.'')->to(
+			  controller => 'generic',
+			  action => 'del',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('delete_'.$table_name);
+
+			$routes->get('/'.$table_name.'/doc/doc')->to(
+			  controller => 'generic',
+			  action => 'doc',
+			  collection => $table_name,
+			  item => $tem_name
+			)->name('getd_'.$table_name);
+
+
+
         }
 
 		if ( $action eq 'addcolumn' ) {
             my $table_name = $hash{'table_name'} or return { error => "table_name is missing"};
+			$table_name = $API->regex_alnum( $table_name );
 			my $column_name = $hash{'name'} or return { error => "column name is missing"};
+			$column_name = $API->regex_alnum( $column_name );
 			my $default_value = $hash{'default'} || '';
 			my $type = $hash{'type'} or return { error => "column type is missing"};
+			#$type = $API->regex_alnum( $type );
 			my $maxlength = defined $hash{'maxlength'} ? ( length $hash{'maxlength'} > 0 ? $hash{'maxlength'} : '255' ) : '255';
+			$maxlength = $API->regex_alnum( $maxlength );
 			my $is_nullable = $hash{'is_nullable'};
 			my $unique = $hash{'unique'};
 			my $required = $hash{'required'};
@@ -515,25 +575,43 @@ sub create
 			my $foreign_column_value = $hash{'foreign_column_value'};
 
 			my $strAlter = 'ALTER TABLE '.$table_name.' ';
-			my $strAdd = ' ADD COLUMN '.$column_name.' ';
+			my $strAdd = ' ADD COLUMN "'.$column_name.'" ';
 			my $strType = ' '.$type.' ';
-			my $strNull = ' ';
-			my $strDefault = ' ';
+			my $strNull = '';
+			my $strDefault = '';
 
 			if ( $type eq 'character varying') {
 			  $strType .= '('.$maxlength.')';
 			}
 			if ( $is_nullable eq 'NO') {
-			  $strNull = ' NOT NULL '
+			  $strNull = ' NOT NULL ';
 			}
-			if ( length $strDefault > 0) {
-			  $strDefault = " '".$default_value."' ";
+			if ( $default_value ne '' ) {
+			  $strDefault = " DEFAULT '".$default_value."' ";
 			}
 
 			# alter the existing table and add this new column
             my $strSQLcreate = $strAlter . $strAdd . $strType . $strNull . $strDefault;
             my $sth = $dbh->prepare( $strSQLcreate, );
             $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLcreate};
+
+			# == if this column hask foreign key, lets create the foreign key constraint
+			if ( $has_fk == 1) {
+			  my $strAddConstraint = ' ADD CONSTRAINT fkey_'.$table_name.'_'.$column_name.' FOREIGN KEY ("'.$column_name.'") ';
+			  my $strReferences = ' REFERENCES  "'.$foreign_table_name.'" ("'.$foreign_column_value.'") ';
+			  my $strActions = ' ON UPDATE CASCADE ON DELETE RESTRICT; ';
+			  my $strSQLforeign_key = $strAlter . $strAddConstraint . $strReferences . $strActions;
+			  $sth = $dbh->prepare( $strSQLforeign_key, );
+			  $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLforeign_key};
+			}
+
+			# == if this column is unique, lets create the unique constraint
+			if ( $unique == 1) {
+			  my $strAddConstraint = ' ADD CONSTRAINT unique_'.$table_name.'_'.$column_name.' UNIQUE ('.$column_name.') ';
+			  my $strSQLunique = $strAlter . $strAddConstraint;
+			  $sth = $dbh->prepare( $strSQLunique, );
+			  $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLunique};
+			}
         }
 
 		# insert a new table or column on agile_rest_table or agile_rest_column
@@ -547,6 +625,7 @@ sub create
 		  or return {
             error => $sth->errstr . " SQL statement: ".$strSQL . " Placeholder values: " . dump(@sql_values)
 		};
+		my $last_inserted = 0;
         while ( my $record = $sth->fetchrow_hashref())
         {
             push @record_id, $record->{$primaryKey};
@@ -557,8 +636,11 @@ sub create
 				$new_maped_table_id = $record->{$primaryKey};
 			}
 
+			$last_inserted = $record->{$primaryKey};
+
 			$added_record->{$primaryKey} = $record->{$primaryKey};
         }
+
 
 		# lets check if it is a table or column, and properly map the table columns
         if ( $action eq 'addtable' ) {
@@ -566,6 +648,9 @@ sub create
         }
 		elsif ( $action eq 'addcolumn' ) {
             $API->map_columns( $hash{'agile_rest_table_id'}, $hash{'table_name'} , $self );
+
+			my $position = $API->get_column_position( $hash{'table_name'}, $hash{'name'} );
+			$API->Exec(' UPDATE agile_rest_column SET ordinal_position = '.$position.' WHERE agile_rest_column_id = '.$last_inserted.'; ');
         }
 
         push @added_records, $added_record;
@@ -661,6 +746,7 @@ sub update{
         sql => $strSQL,
         ''.$primaryKey.'' => $item_id,
         place_holders_dump => dump(@sql_values)
+		#, x => $defaultColumns
     };
 }
 
@@ -676,18 +762,56 @@ sub del{
     my $item_id  = $conf->{item_id} || return  { error => 'item_id is missing' };
     $item_id=~ s/'//g;
 
+	my $action = $conf->{action};
+	#my $app = $conf->{app}
+	#  || return { error => 'please provide an app' };
+	my $table_name = $conf->{table_name} || return  { error => 'table_name is missing' };
+	my $column_name = $conf->{column_name} || '';
+
     my $dbh = $API->dbh;
-    my $strSQL = 'DELETE FROM '.$tableName.' WHERE "'.$self->primary_key.'" IN ('.$item_id.')';
-    my $sth = $dbh->prepare( $strSQL, );
-    $sth->execute( ) or return { error => $sth->errstr . "   ----   ". $strSQL};
-    if ( $sth->rows == 0 ) {
-        return {
-            error => 'resource_not_found',
-            strSQL => $strSQL,
-            primaryKey => $self->primary_key,
-            str_id => $item_id
-        }
+	my $strSQL;
+	if ( $action eq 'deletetable' )
+	{
+
+	  my $strSQLdelete = ' DROP TABLE "'.$table_name.'"; ';
+      my $sth = $dbh->prepare( $strSQLdelete, );
+      $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLdelete};
+
+	  $strSQLdelete = ' DELETE FROM agile_rest_column WHERE agile_rest_table_id IN ('.$item_id.') ';
+      $sth = $dbh->prepare( $strSQLdelete, );
+      $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLdelete};
+
+	  $strSQLdelete = ' DELETE FROM agile_rest_table WHERE agile_rest_table_id IN ('.$item_id.') ';
+      $sth = $dbh->prepare( $strSQLdelete, );
+      $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLdelete};
+
+
+
     }
+	elsif ( $action eq 'deletecolumn' ) {
+        my $strSQLdelete = ' ALTER TABLE '.$table_name.' DROP COLUMN "'.$column_name.'"; ';
+        my $sth = $dbh->prepare( $strSQLdelete, );
+        $sth->execute( ) or return { error => $sth->errstr . " SQL statement: ".$strSQLdelete};
+
+		$strSQL = 'DELETE FROM '.$tableName.' WHERE "'.$self->primary_key.'" IN ('.$item_id.')';
+		$sth = $dbh->prepare( $strSQL, );
+		$sth->execute( ) or return { error => $sth->errstr . "   ----   ". $strSQL};
+		if ( $sth->rows == 0 ) {
+			return {
+				error => 'resource_not_found',
+				strSQL => $strSQL,
+				primaryKey => $self->primary_key,
+				str_id => $item_id
+			}
+		}
+    }
+	else
+	{
+
+
+	}
+
+
     return {
         status => 'success',
         response => 'Item '.$item_id.' deleted on ' . $self->collection,

@@ -4,6 +4,7 @@ use Mojo::Log;
 use Mojo::Redis2;
 use Mojolicious::Plugin::TtRenderer::Engine;
 use AgileRest::API;
+use Mojo::Pg;
 use DBIx::Connector;
 use File::Basename 'dirname';
 use File::Spec::Functions 'catdir';
@@ -15,8 +16,8 @@ has dbh => sub {
         my $self = shift;
 
         my $data_source = "dbi:Pg:dbname=juris;host=localhost";
-        my $user = "xxxx";
-        my $password = "xxxx";
+        my $user = "xx";
+        my $password = "xx";
 
         my $dbh = DBI->connect(
             $data_source,
@@ -26,6 +27,18 @@ has dbh => sub {
         );
 
         return $dbh;
+};
+
+has pg => sub {
+        my $self = shift;
+
+        my $data_source = "juris";
+        my $user = "eduardoalmeida";
+        my $password = "fuzzy24k";
+
+        my $pg = Mojo::Pg->new('postgresql://'.$user.':'.$password.'@localhost/'.$data_source.'');
+
+        return $pg;
 };
 
 
@@ -72,30 +85,19 @@ sub startup {
   # add default Mojo helpers
   $app->plugin('DefaultHelpers');
 
-  $app->plugin( 'Mojolicious::Plugin::PDFRenderer', {
-            javascript_delay => 1000
-            , load_error_handling => 'ignore'
-            , page_height => '5in'
-            , page_width => '10.5in'
-            # options that would otherwise be passed to PDF::WebKit,
-            # see `wkhtmltopdf --extended-help` for more (replace dashes w/ underscores)
-  } );
-
-  # set db helper via database plugin
-  $app->plugin('database', {
-      dsn      => 'dbi:Pg:dbname=juris;host=localhost',
-      #host      => '10.0.0.9',
-      username => $app->config('db_user'),
-      password => $app->config('db_password'),
-      options  => { 'pg_enable_utf8' => 1, AutoCommit => 1 },
-      helper   => 'db',
-    }
-  );
+  #$app->plugin( 'Mojolicious::Plugin::PDFRenderer', {
+  #          javascript_delay => 1000
+  #          , load_error_handling => 'ignore'
+  #          , page_height => '5in'
+  #          , page_width => '10.5in'
+  #          # options that would otherwise be passed to PDF::WebKit,
+  #          # see `wkhtmltopdf --extended-help` for more (replace dashes w/ underscores)
+  #} );
 
 
 
 
-  my $dbh = $app->db;
+  my $dbh = $app->dbh;
 
   # >>>>>>>============= END PLUGINS =============<<<<<<<<<<
 
@@ -333,13 +335,13 @@ sub startup {
     );
 
     # generate model to be used on client
-    $routes->get('/database/generatemodel')->to(
+    $routes->post('/database/model')->to(
       controller => 'database',
       action => 'model'
     );
 
     # get model to be used on client
-    $routes->get('/database/getmodel')->to(
+    $routes->get('/database/model')->to(
           controller => 'database',
           action => 'get_model',
     );
@@ -424,6 +426,100 @@ sub startup {
         item => 'column'
         ,relationalColumn => 'agile_rest_table_id'
     );
+    #====== agile_rest_column
+
+    #====== api_database_version
+    $routes->get('/database/versions')->to(
+      controller => 'generic',
+      action => 'list',
+      collection => 'api_database_version',
+      item => 'version'
+      ,grid_json_model => 'native'
+    );
+
+    $routes->get('/database/versions/:api_database_version_id')->to(
+      controller => 'generic',
+      action => 'read',
+      collection => 'api_database_version',
+      item => 'version'
+    );
+
+    $routes->post('/database/versions')->to(
+      controller => 'generic',
+      action => 'create',
+      collection => 'api_database_version',
+      item => 'version'
+    );
+
+    $routes->put('/database/versions/:api_database_version_id')->to(
+        controller => 'generic',
+        action => 'update',
+        collection => 'api_database_version',
+        item => 'version'
+    );
+
+    $routes->delete('/database/versions/:api_database_version_id')->to(
+        controller => 'generic',
+        action => 'del',
+        collection => 'api_database_version',
+        item => 'version'
+    );
+    #====== api_database_version
+
+
+    # fkey_'.$table_name.'_'.$column_name.'
+    # /database/designer/table/:table_name/constraint/:constraint_name
+    $routes->delete('/database/designer/table/:table_name/constraint/:constraint_name')->to(
+        controller => 'DBDesigner',
+        action => 'drop_rel'
+    );
+
+
+    # fkey_'.$table_name.'_'.$column_name.'
+    # /database/designer/table/:table_name/constraint/:constraint_name
+    $routes->post('/database/designer/table/:table_name/foreign_key/:column_name/foreign_table/:foreign_table/:foreign_column')->to(
+        controller => 'DBDesigner',
+        action => 'add_rel'
+    );
+
+    # adds t_rex_user_id column on a table
+    $routes->post('/database/designer/table/:table_name/user_identifier')->to(
+        controller => 'DBDesigner',
+        action => 'add_user_identifier'
+    );
+
+
+    # set column as nullable
+    $routes->post('/database/designer/table/:table_name/:column_name/is_nullable')->to(
+        controller => 'DBDesigner',
+        action => 'set_column_nullable'
+    );
+
+    $routes->post('/database/designer/table/:table_name/:column_name/is_not_nullable')->to(
+        controller => 'DBDesigner',
+        action => 'set_column_not_nullable'
+    );
+
+
+
+
+
+    $routes->post('/dhtmlx/form/upload')->to(
+      controller => 'DHTMLX',
+      action => 'form_upload'
+    );
+
+    $routes->post('/dhtmlx/vault/upload')->to(
+      controller => 'DHTMLX',
+      action => 'vault_upload'
+    );
+
+    $routes->get('/dhtmlx/vault/upload')->to(
+      controller => 'DHTMLX',
+      action => 'vault_upload'
+    );
+
+
 
   # ==== HELPERS end points
 
@@ -435,49 +531,50 @@ sub startup {
 	while ( my $record = $sth->fetchrow_hashref())
 	{
       my $primary_key = $API->get_table_schema( $record->{table_name} )->{primary_key};
-      my $tem_name = substr($record->{table_name}, 0, -1);
+      #my $tem_name = substr($record->{table_name}, 0, -1);
+      my $tem_name = $record->{table_name};
 
       $routes->get('/'.$record->{table_name}.'')->to(
         controller => 'generic',
         action => 'list',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('get_'.$record->{table_name});
 
       $routes->post('/'.$record->{table_name}.'')->to(
         controller => 'generic',
         action => 'create',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('post_'.$record->{table_name});
 
       $routes->get('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
         controller => 'generic',
         action => 'read',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('geti_'.$record->{table_name});
 
       $routes->put('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
         controller => 'generic',
         action => 'update',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('put_'.$record->{table_name});
 
       $routes->delete('/'.$record->{table_name}.'/:'.$primary_key.'')->to(
         controller => 'generic',
         action => 'del',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('delete_'.$record->{table_name});
 
       $routes->get('/'.$record->{table_name}.'/doc/doc')->to(
         controller => 'generic',
         action => 'doc',
         collection => $record->{table_name},
         item => $tem_name
-      );
+      )->name('getd_'.$record->{table_name});
   }
   # >>>>>>>>>>>> Generic END POINTS
 

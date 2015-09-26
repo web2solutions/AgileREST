@@ -14,11 +14,10 @@ html, body {
 width: 100%;
 height: 100%;
 margin: 0px;
-background:#FFF;
 padding:0px;
 font-family:Arial, Helvetica, sans-serif;
 font-size:12px;
-background:#0D1D32;
+background:#14679d;
 color:#ffffff;
 }
 input, textarea{
@@ -67,9 +66,9 @@ span{font-weight:bold; color:#FC0; font-size:13px; font-family:Tahoma, Geneva, s
 SyntaxHighlighter.all();
 SyntaxHighlighter.defaults['toolbar'] = false;
 </script>
-<h1><img src="http://www.web2solutions.com.br/imagens/logo.png" /></h1>
+<h1><img src="http://www.web2solutions.com.br/logo.png" width=120 /></h1>
 <h1>End point documentation - REST API</h1>
-<p><em><strong><span>This documentation presumes that you already have DHTMLX Suite PRO version and CAIRS fw  installed on your system</span></strong></em><strong>.</strong></p>
+<p><em><strong><span>This documentation presumes that you are using $dhx framework in your application</span></strong></em><strong>.</strong></p>
 <p>&nbsp;</p>
 
 <h2>Summary</h2>
@@ -414,6 +413,48 @@ $dhx.REST.API.get({
     }
 });
 </pre>
+
+
+
+
+<p></p>
+<hr />
+<p></p>
+<h2>Metadata information</h2>
+
+<h4>Form settings</h4>
+<pre class="brush: js;ruler: true; first-line: 1;">
+            [% FOREACH hash IN columnsMetaData %][% IF hash.type != 'primary_key' %][% IF hash.name != 't_rex_user_id' %]
+            , {
+                name: '[% hash.name %]'
+                ,label: '[% hash.dhtmlx_grid_header %]'
+                , type: "[% hash.dhtmlx_form_type %]"
+                , validate: "[% hash.validation %]"[% IF hash.required == 1 %]
+				, required: true[% END %]
+				, mask_to_use: "[% hash.format %]"
+				, maxLength: "[% hash.maxlength %]"
+				, value: "[% hash.default %]"[% IF hash.note != '' %]
+				, tooltip: "[% hash.note %]"
+                , note: { text: '[% hash.note %]' }[% END %][% IF hash.dhtmlx_form_type == 'combo' %]
+                , "dhx_prop_text": "[% hash.foreign_column_name %]"
+				, "dhx_table": "[% hash.foreign_table_name %]"
+				, "dhx_prop_value": "[% hash.foreign_column_value %]"
+                , "options": []
+                , "sync": [% IF hash.sync == 1 %] true [% ELSE %] false [% END %][% END %][% IF hash.dhtmlx_form_type == 'vault' %]
+                , allowedExtensions: '[% hash.vault_allowed_extensions %]'
+				, filesLimit: [% hash.vault_filesLimit %]
+				//, maxFileSize: 512000
+                , autoStart: [% hash.vault_autoStart %]
+                , autoRemove: [% hash.vault_autoRemove %]
+                , buttonUpload: [% hash.vault_buttonUpload %]
+                , buttonClear: [% hash.vault_buttonClear %][% END %]
+            }[% END %][% END %]
+            [% END %]
+</pre>
+
+
+
+
 <p></p>
 <hr />
 <p></p>
@@ -475,7 +516,8 @@ var [% tableName %]_settings = {
                 inputWidth: 160
             }
 
-			/* ---------- fields ---------- */[% FOREACH variable IN defaultColumns %][% IF variable != defaultColumns.first %]
+			/* ---------- fields ---------- */
+            [% FOREACH variable IN defaultColumns %][% IF variable != defaultColumns.first %]
 			, {
                 type: 'input',
                 name: '[% variable %]',

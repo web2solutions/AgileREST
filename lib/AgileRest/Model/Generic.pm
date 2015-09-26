@@ -79,9 +79,9 @@ sub BUILD {
 	my $tname = $self->table_prefix . $self->collection;
 
 	my $default_columns = $self->controller->redis->get( 'juris_'.$tname. '_default_columns') || undef;
-	$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
-	$logger->debug( 'XXXXX on redis ' . $default_columns);
-	$logger->debug( 'XXXXXXXXXXXXXXXXXXXX');
+	#$logger->debug( 'XXXXXXXXXXXXXXXXXXXX') if defined $default_columns;
+	#$logger->debug( 'XXXXX on redis ' . $default_columns) if defined $default_columns;
+	#$logger->debug( 'XXXXXXXXXXXXXXXXXXXX') if defined $default_columns;
 
 	my $primary_key = $self->controller->redis->get( 'juris_'.$tname. '_primary_key') || undef;
 	my $columns = $self->controller->redis->get( 'juris_'.$tname. '_columns') || undef;
@@ -110,7 +110,7 @@ sub BUILD {
 	#}
 	#else
 	#{
-	  $logger->debug( 'XXXXX lets get on schema ');
+	    #$logger->debug( 'XXXXX lets get on schema ');
 		my $table_schema = $self->API->get_table_schema( $tname );
 		$primary_key = $table_schema->{primary_key};
 		$default_columns = '';
@@ -123,7 +123,7 @@ sub BUILD {
 		$self->primary_key( $primary_key );
 		$self->columns( $table_schema->{columns} );
 
-		$logger->debug( 'XXXX columns ' . $columns);
+		#$logger->debug( 'XXXX columns ' . $columns) if defined $columns;
 
 		my $redis_res_default_columns = $self->controller->redis->set( 'juris_'.$tname. '_default_columns' => $columns);
 		my $redis_res_primary_key = $self->controller->redis->set( 'juris_'.$tname. '_primary_key' => $primary_key);
@@ -172,7 +172,7 @@ sub list
 
 	# not smart
 	my $nCurrentPag = $conf->{nCurrentPag} || 1;
-	my $nRegPag = $conf->{nRegPag} || 1000;
+	my $nRegPag = $conf->{nRegPag} || 5000;
 
 	my $tableName = $self->table_prefix . $self->collection;
 
@@ -277,18 +277,18 @@ sub list
 	my $strSQL = 'SELECT '.$strColumns.' FROM '.$tableName.'  WHERE '.$strSQLstartWhere.' ' . $sql_filters . ' '. $sql_ordering . ' ';
 
 	# if smart rendering
-	#if($isSmartRendering)
-  #{
+	if($isSmartRendering)
+	{
 	    $strSQL = $strSQL .  " LIMIT $count OFFSET $posStart ";
-	#}
-	#else # if not smart rendering
-	#{
-	#    $nCurrentPag = $nCurrentPag - 1;
+	}
+	else # if not smart rendering
+	{
+	    $nCurrentPag = $nCurrentPag - 1;
 
-	#    $nCurrentPag = $nRegPag * $nCurrentPag;
+	    $nCurrentPag = $nRegPag * $nCurrentPag;
 
-	#    $strSQL = $strSQL .  " LIMIT $nRegPag OFFSET $nCurrentPag ";
-	#}
+	    $strSQL = $strSQL .  " LIMIT $nRegPag OFFSET $nCurrentPag ";
+	}
 	#$logger->debug( '======> Built SQL string' );
 	#$logger->debug( $strSQL );
 	$sth = $dbh->prepare( $strSQL, );
@@ -348,8 +348,8 @@ sub list
 
 	my $response = {
 			item => $self->item,
-      collection => $self->collection,
-      columns => $self->columns,
+			collection => $self->collection,
+			columns => $self->columns,
 			status => 'success',
 			response => 'Succcess',
 			total_count => $totalCount,
@@ -465,11 +465,15 @@ sub create
 										if ( $key ne $primaryKey) {
 												if ( index($sql_columns, '"' .$key.'"') < 0 )
 												{
-														$sql_columns = $sql_columns .'"' .$key.'", ';
-														$sql_placeholders  = $sql_placeholders . '?, ';
-														push @sql_values, $hash{$key};
+														if ( $key ne 't_rex_user_id' ) {
+														  $sql_columns = $sql_columns .'"' .$key.'", ';
+														  $sql_placeholders  = $sql_placeholders . '?, ';
+														  push @sql_values, $hash{$key};
 
-														$added_record->{$key} = $hash{$key};
+														  $added_record->{$key} = $hash{$key};
+														}
+
+
 												}
 										}
 								}
@@ -519,10 +523,14 @@ sub create
 											if ( $key ne $primaryKey) {
 													if ( index($sql_columns, '"' .$key.'"') < 0 )
 													{
-															$sql_columns = $sql_columns .'"' .$key.'", ';
-															$sql_placeholders  = $sql_placeholders . '?, ';
-															push @sql_values, $hash{$key};
-															$added_record->{$key} = $hash{$key};
+															if ( $key ne 't_rex_user_id' ) {
+															  $sql_columns = $sql_columns .'"' .$key.'", ';
+															  $sql_placeholders  = $sql_placeholders . '?, ';
+															  push @sql_values, $hash{$key};
+															  $added_record->{$key} = $hash{$key};
+															}
+
+
 													}
 											}
 									}
@@ -604,8 +612,14 @@ sub update{
 								if ( $key ne $primaryKey) {
 										if ( index($sql_setcolumns, '"' .$key.'"') < 0 )
 										{
-												$sql_setcolumns = $sql_setcolumns .'"'. $key .'" = ?, ';
-												push @sql_values, $hash{$key};
+
+												if ( $key ne 't_rex_user_id' ) {
+												  $sql_setcolumns = $sql_setcolumns .'"'. $key .'" = ?, ';
+												  push @sql_values, $hash{$key};
+												}
+
+
+
 										}
 								}
 						}

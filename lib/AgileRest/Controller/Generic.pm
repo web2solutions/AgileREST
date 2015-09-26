@@ -1,6 +1,7 @@
 package AgileRest::Controller::Generic;
 use Mojo::Base 'Mojolicious::Controller';
 
+use Data::Dump qw(dump);
 use AgileRest::Model::Generic;
 
 sub list {
@@ -269,11 +270,13 @@ sub del {
 sub doc {
   my $self = shift;
   my $API = $self->API;
+  my $dbh = $API->dbh;
   my $app = $self->app;
   my $logger = $self->logger;
   my $transaction = $self->tx;
   my $req = $transaction->req;
   $API->branch( $req->headers->header('X-branch') || 'test' );
+
   my $model = AgileRest::Model::Generic->new(
     API => $API,
     item => $self->stash('item'),
@@ -281,14 +284,38 @@ sub doc {
     logger => $logger,
     controller => $self
   );
+
   my $table_schema = $model->schema;
   my $tableName = $model->table_prefix . $model->collection;
-  my $defaultColumns = '';
-  for( @{$table_schema->{columns}} )
+  my $defaultColumns = $model->default_columns;
+
+  my $table_id = 0;
+  my $table_MetaData = undef;
+
+
+  my $strSQL = "SELECT * FROM agile_rest_table WHERE table_name = ?;";
+  my $sth = $dbh->prepare( $strSQL, );
+  $sth->execute( $tableName ) or $self->fail( $sth->errstr );
+  while ( my $record = $sth->fetchrow_hashref())
   {
-      $defaultColumns = $defaultColumns . $_->{name} . ',' if $_->{name} ne $model->primary_key;
+
+    $table_MetaData = $record;
+    $table_id = $record->{"agile_rest_table_id"};
+
   }
-  $defaultColumns = $defaultColumns . $model->primary_key;
+
+  my @columnsMetaData;
+  $strSQL = "SELECT * FROM agile_rest_column WHERE agile_rest_table_id = ? ORDER BY ordinal_position ASC";
+  $sth = $dbh->prepare( $strSQL, );
+  $sth->execute( $table_id ) or $self->fail( $sth->errstr );
+  while ( my $record = $sth->fetchrow_hashref())
+  {
+      push @columnsMetaData, $record;
+      #$logger->debug( dump $record );
+  }
+
+  $logger->debug( dump @columnsMetaData );
+
   my @defaultColumns = split(/,/, $defaultColumns);
   return $self->render(
     template => 'doc',
@@ -300,10 +327,15 @@ sub doc {
     columns => $model->columns,
     defaultColumns => [@defaultColumns],
     defaultColumnsStr => $defaultColumns,
-    primaryKey => $model->primary_key
+    primaryKey => $model->primary_key,
+    columnsMetaData => [@columnsMetaData],
+    table_MetaData => $table_MetaData
   ) if $self->req->url->to_abs->userinfo eq $self->app->config->{doc_user} . ':' . $self->app->config->{doc_password};
+
   $self->res->headers->www_authenticate('Basic');
   $self->render(text => 'Sorry Bill, you need to authenticate!', status => 401);
+
+
   # Do something after the transaction has been finished
   $self->on(finish => sub {
     my $c = shift;

@@ -1,6 +1,5 @@
 package AgileRest::API;
 use Moo;
-#use Mojo::Message::Response;
 use Mojo::JSON_XS; # Must be earlier than Mojo::JSON
 use Mojo::JSON qw(decode_json encode_json from_json to_json);
 #use Crypt::Digest::SHA256 qw( sha256_hex );
@@ -103,7 +102,10 @@ sub sqlToDhxGridType{
     elsif ( $sql_type eq 'boolean' ) {
         return 'ch';
     }
-    return '';
+	elsif ( $sql_type eq 'primary_key' ) {
+        return 'ro';
+    }
+    return 'ro';
 }
 
 sub sqlToDHTMLXsort{
@@ -208,6 +210,41 @@ sub get_table_schema{
     $schema->{columns} = [@columns];
     #debug $schema->{primary_key};
     return $schema;
+}
+
+
+sub get_column_position{
+    my($self, $table, $column) = @_;
+    my $dbh = $self->dbh;
+	my $position = -1;
+    $table = $table || die "please provide a table name" ;
+    my $strSQL = "SELECT
+    cols.column_name,cols.table_schema,cols.table_name,cols.column_name,cols.ordinal_position,cols.data_type,cols.character_maximum_length,
+    (
+    SELECT
+    pg_catalog.col_description(c.oid, cols.ordinal_position::int)
+    FROM
+    pg_catalog.pg_class c
+    WHERE
+    c.oid     = (SELECT '".$table."'::regclass::oid) AND
+    c.relname = cols.table_name
+    ) as column_comment
+    FROM
+    information_schema.columns cols
+    WHERE
+    cols.table_catalog = 'juris' AND
+    cols.table_name    = '".$table."'    AND
+    cols.table_schema  = 'public';";
+    my $sth = $dbh->prepare( $strSQL, );
+    $sth->execute(  ) or die $sth->errstr;
+    while ( my $record = $sth->fetchrow_hashref())
+    {
+        if ( $record->{column_name} eq $column ) {
+		  $position = $record->{ordinal_position};
+		}
+    }
+    #debug $schema->{primary_key};
+    return $position;
 }
 
 sub get_table_column_schema{
@@ -327,157 +364,194 @@ sub map_columns
     #$logger->debug( $self->dumper( @fkeys ) );
     foreach my $column_hash ( @columns )
     {
-        my $column_exist = $API->Select( "SELECT name FROM agile_rest_column WHERE name = '".$column_hash->{name}."' AND agile_rest_table_id = '".$new_maped_table_id."';" );
-        if ( ! defined $column_exist  )
-        {
-			my $found_fkey = 0;
-            my @column_values;
-            push @column_values, $new_maped_table_id;
-            push @column_values, $column_hash->{name};
-            push @column_values, $column_hash->{type};
-            push @column_values, $column_hash->{name};
-            push @column_values, $API->sqlToDHTMLXsort( $column_hash->{type} );
-            push @column_values, $column_hash->{maxlenght};
-            push @column_values, $API->sqlToDhxFormType( $column_hash->{type} );
-            push @column_values, $API->sqlToDhxFormMask( $column_hash->{type} );
-            foreach my $fkey_hash ( @fkeys )
-            {
-                if( $fkey_hash->{name} eq $column_hash->{name} )
-                {
-                    #$logger->debug( 'nome da table: ' .$table_name  );
-                    #$logger->debug( 'nome da fk: ' .$fkey_hash->{name}  );
-                    #$logger->debug( 'nome da coluna : ' .$column_hash->{name}  );
-                    #foreign_column_name, propriedade text
-                    #foreign_column_value, propriedade value
-                    my $prop_value = $fkey_hash->{foreign_column_name}; # column_id value
-                    $prop_value =~ s/ //gi;
-                    my $prop_text = $prop_value; # column text
-                    $prop_text =~ s/_id//gi;
-                    $prop_text =~ s/_id//gi;
-                    #
-                    push @column_values, 1;
-                    push @column_values, $fkey_hash->{foreign_table_name};
-                    push @column_values, $prop_text;
-                    push @column_values, $prop_value;
-                    push @column_values, 'coro';
-                    $found_fkey = 1;
-                }
-            }
-            if ( $found_fkey == 0) {
-                push @column_values, 0;
-                push @column_values, '';
-                push @column_values, '';
-                push @column_values, '';
-                push @column_values, $API->sqlToDhxGridType( $column_hash->{type} );
-            }
-            my $strSQL = "SELECT
-            cols.ordinal_position
-            ,cols.numeric_precision
-            ,cols.numeric_scale
-            ,cols.is_nullable
-            ,cols.column_default
-            FROM
-            information_schema.columns cols
-            WHERE
-            cols.table_catalog = 'juris' AND
-            cols.table_name    = '".$table_name."'    AND
-            cols.column_name    = '".$column_hash->{name}."'    AND
-            cols.table_schema  = 'public';";
-            my $sth = $dbh->prepare( $strSQL, );
-            $sth->execute(  ) or die $sth->errstr;
-            while ( my $record = $sth->fetchrow_hashref())
-            {
-                push @column_values, $record->{ordinal_position};
-                push @column_values, $record->{numeric_precision};
-                push @column_values, $record->{numeric_scale};
-                push @column_values, $record->{is_nullable};
-                my $default = '';
-                if ( defined($record->{column_default}) )
-                {
-                    if ( length( $record->{column_default} ) > 0)
-                    {
-                        my $string = $record->{column_default};
-                        if ( $string =~ /'(.*?)'/ )
-                        {
-                            push @column_values, $1;
-                        }
-                        else
-                        {
-                            push @column_values, '';
-                        }
-                    }
-                    else
-                    {
-                        push @column_values, '';
-                    }
-                }
-                else
-                {
-                    push @column_values, '';
-                }
-            }
-            my $is_fk = 0;
-            my $strSQLcheckIfFk = "select R.TABLE_NAME, R.COLUMN_NAME
-            from INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE u
-            inner join INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS FK
-            on U.CONSTRAINT_CATALOG = FK.UNIQUE_CONSTRAINT_CATALOG
-            and U.CONSTRAINT_SCHEMA = FK.UNIQUE_CONSTRAINT_SCHEMA
-            and U.CONSTRAINT_NAME = FK.UNIQUE_CONSTRAINT_NAME
-            inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE R
-            ON R.CONSTRAINT_CATALOG = FK.CONSTRAINT_CATALOG
-            AND R.CONSTRAINT_SCHEMA = FK.CONSTRAINT_SCHEMA
-            AND R.CONSTRAINT_NAME = FK.CONSTRAINT_NAME
-            WHERE U.COLUMN_NAME = ?
-            AND U.TABLE_SCHEMA = 'public'
-            AND U.TABLE_NAME = ?
-            ";
-            my $sthc = $dbh->prepare( $strSQLcheckIfFk, );
-            $sthc->execute( $column_hash->{name}, $table_name ) or die $sthc->errstr;
-            while (  my $re = $sthc->fetchrow_hashref())
-            {
-                $is_fk = 1;
-            }
-            push @column_values, $is_fk;
-            #$logger->debug( $self->dumper( @column_values ) );
-            #$logger->debug( '-------------------' );
-            my $new_maped_column_id = $API->Insert( {
-                table => 'agile_rest_column'
-                ,columns => '
-                agile_rest_table_id,
-                name,
-                type,
-                dhtmlx_grid_header,
-                dhtmlx_grid_sorting,
-                maxlength,
-                dhtmlx_form_type,
-                format,
-                has_fk,
-                foreign_table_name,
-                foreign_column_name,
-                foreign_column_value,
-                dhtmlx_grid_type
-                ,ordinal_position
-                ,numeric_precision
-                ,numeric_scale
-                ,is_nullable
-                ,"default"
-                ,is_fk
-                '
-                ,placeholders => '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
-                ,primary_key => 'agile_rest_column_id'
-                ,values => [@column_values]
-            } );
-            #push @maped_tables, $table_name;
-        }
+
+		#if ( $column_hash->{name} ne 't_rex_user_id' ) {
+		  my $column_exist = $API->Select( "SELECT name FROM agile_rest_column WHERE name = '".$column_hash->{name}."' AND agile_rest_table_id = '".$new_maped_table_id."';" );
+		  if ( ! defined $column_exist  )
+		  {
+			  my $found_fkey = 0;
+			  my @column_values;
+			  push @column_values, $new_maped_table_id;
+			  push @column_values, $column_hash->{name};
+			  push @column_values, $column_hash->{type};
+			  push @column_values, $column_hash->{name};
+			  push @column_values, $API->sqlToDHTMLXsort( $column_hash->{type} );
+			  push @column_values, $column_hash->{maxlenght};
+
+			  push @column_values, $API->sqlToDhxFormType( $column_hash->{type} );
+
+			  push @column_values, $API->sqlToDhxFormMask( $column_hash->{type} );
+			  foreach my $fkey_hash ( @fkeys )
+			  {
+				  if( $fkey_hash->{name} eq $column_hash->{name} )
+				  {
+					  #$logger->debug( 'nome da table: ' .$table_name  );
+					  #$logger->debug( 'nome da fk: ' .$fkey_hash->{name}  );
+					  #$logger->debug( 'nome da coluna : ' .$column_hash->{name}  );
+					  #foreign_column_name, propriedade text
+					  #foreign_column_value, propriedade value
+					  my $prop_value = $fkey_hash->{foreign_column_name}; # column_id value
+					  $prop_value =~ s/ //gi;
+					  my $prop_text = $prop_value; # column text
+					  $prop_text =~ s/_id//gi;
+					  $prop_text =~ s/_id//gi;
+					  #
+					  push @column_values, 1;
+					  push @column_values, $fkey_hash->{foreign_table_name};
+					  push @column_values, $prop_text;
+					  push @column_values, $prop_value;
+					  push @column_values, 'coro';
+					  $found_fkey = 1;
+				  }
+			  }
+			  if ( $found_fkey == 0) {
+				  push @column_values, 0;
+				  push @column_values, '';
+				  push @column_values, '';
+				  push @column_values, '';
+				  push @column_values, $API->sqlToDhxGridType( $column_hash->{type} );
+			  }
+			  my $strSQL = "SELECT
+			  cols.ordinal_position
+			  ,cols.numeric_precision
+			  ,cols.numeric_scale
+			  ,cols.is_nullable
+			  ,cols.column_default
+			  FROM
+			  information_schema.columns cols
+			  WHERE
+			  cols.table_catalog = 'juris' AND
+			  cols.table_name    = '".$table_name."'    AND
+			  cols.column_name    = '".$column_hash->{name}."'    AND
+			  cols.table_schema  = 'public';";
+			  my $sth = $dbh->prepare( $strSQL, );
+			  $sth->execute(  ) or die $sth->errstr;
+			  while ( my $record = $sth->fetchrow_hashref())
+			  {
+				  push @column_values, $record->{ordinal_position};
+				  push @column_values, $record->{numeric_precision};
+				  push @column_values, $record->{numeric_scale};
+				  push @column_values, $record->{is_nullable};
+				  my $default = '';
+				  if ( defined($record->{column_default}) )
+				  {
+					  if ( length( $record->{column_default} ) > 0)
+					  {
+						  my $string = $record->{column_default};
+						  if ( $string =~ /'(.*?)'/ )
+						  {
+							  push @column_values, $1;
+						  }
+						  else
+						  {
+							  push @column_values, '';
+						  }
+					  }
+					  else
+					  {
+						  push @column_values, '';
+					  }
+				  }
+				  else
+				  {
+					  push @column_values, '';
+				  }
+			  }
+			  my $is_fk = 0;
+			  my $strSQLcheckIfFk = "select R.TABLE_NAME, R.COLUMN_NAME
+			  from INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE u
+			  inner join INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS FK
+			  on U.CONSTRAINT_CATALOG = FK.UNIQUE_CONSTRAINT_CATALOG
+			  and U.CONSTRAINT_SCHEMA = FK.UNIQUE_CONSTRAINT_SCHEMA
+			  and U.CONSTRAINT_NAME = FK.UNIQUE_CONSTRAINT_NAME
+			  inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE R
+			  ON R.CONSTRAINT_CATALOG = FK.CONSTRAINT_CATALOG
+			  AND R.CONSTRAINT_SCHEMA = FK.CONSTRAINT_SCHEMA
+			  AND R.CONSTRAINT_NAME = FK.CONSTRAINT_NAME
+			  WHERE U.COLUMN_NAME = ?
+			  AND U.TABLE_SCHEMA = 'public'
+			  AND U.TABLE_NAME = ?
+			  ";
+			  my $sthc = $dbh->prepare( $strSQLcheckIfFk, );
+			  $sthc->execute( $column_hash->{name}, $table_name ) or die $sthc->errstr;
+			  while (  my $re = $sthc->fetchrow_hashref())
+			  {
+				  $is_fk = 1;
+			  }
+			  push @column_values, $is_fk;
+			  #$logger->debug( $self->dumper( @column_values ) );
+			  #$logger->debug( '-------------------' );
+			  my $new_maped_column_id = $API->Insert( {
+				  table => 'agile_rest_column'
+				  ,columns => '
+				  agile_rest_table_id,
+				  name,
+				  type,
+				  dhtmlx_grid_header,
+				  dhtmlx_grid_sorting,
+				  maxlength,
+				  dhtmlx_form_type,
+				  format,
+				  has_fk,
+				  foreign_table_name,
+				  foreign_column_name,
+				  foreign_column_value,
+				  dhtmlx_grid_type
+				  ,ordinal_position
+				  ,numeric_precision
+				  ,numeric_scale
+				  ,is_nullable
+				  ,"default"
+				  ,is_fk
+				  '
+				  ,placeholders => '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
+				  ,primary_key => 'agile_rest_column_id'
+				  ,values => [@column_values]
+			  } );
+			  #push @maped_tables, $table_name;
+		  }
+		#}
+
+
+
 
     }
     # ==== END MAP COLUMN
 }
 sub Exec
 {
-    my $self = shift;
+
+	my($self, $strSQL, @params) = @_;
+
     my $dbh = $self->dbh;
-    $dbh->do(shift,undef,@_) || die"Can't exec:n".$dbh->errstr;
+	my $sth = $dbh->prepare( $strSQL ,  );
+
+	if ( @params ) {
+	  if ( @params == 1 && !defined $params[0] ) {
+	   $sth->execute( ) or return { error => "Can't exec: " . $dbh->errstr . " . SQL statement: ".$strSQL};
+	  }
+	  else
+	  {
+		$sth->execute( @params ) or return { error => "Can't exec: " . $dbh->errstr . " . SQL statement: ".dump(@params)};
+	  }
+
+
+	}
+	else
+	{
+	  $sth->execute( ) or return { error => "Can't exec: " . $dbh->errstr . " . SQL statement: ".$strSQL};
+	}
+
+
+
+
+
+	return {
+        status => 'success',
+        response => 'Query executed',
+        sql => $strSQL,
+        place_holders_dump => dump(@params)
+    };
 }
 sub SelectOne
 {
@@ -563,6 +637,16 @@ sub regex_alnum
     $value =~ s/W//g;
     return $value;
 }
+
+sub clean_file_name
+{
+    my ($self, $value) = @_;
+    $value =~ s/ /_/g;
+    $value =~ s/[^0-9a-zA-Z]//g;
+    return $value;
+}
+
+
 sub trackAccessLog
 {
     my ($self, $c) = @_;
@@ -660,31 +744,33 @@ sub check_authorization{
 }
 sub check_authorization_simple{
     my($self, $c, $token, $Origin) = @_;
-    my $dbh = dbh();
+    my $dbh = $self->dbh;
     my $token_status = "";
-    $Origin = $Origin || $c->unauthorized( "Please use MAP RESTFul client" );
-    $token = $token || $c->unauthorized( "token can not be empty" );
+    $Origin = $Origin || return "Please use MAP RESTFul client";
+    $token = $token || return  "token can not be empty";
     my $origin_status = "";
-    my $strSQLcheckOrigin = "SELECT origin FROM tbl_api_allowed_origin WHERE origin = ?";
+    my $strSQLcheckOrigin = "SELECT origin FROM api_allowed_origin WHERE origin = ?";
     my $sth = $dbh->prepare( $strSQLcheckOrigin, );
-    $sth->execute( $Origin ) or $c->fail( $sth->errstr );
+    $sth->execute( $Origin ) or return  $sth->errstr;
     while ( my $record = $sth->fetchrow_hashref())
     {
         $origin_status = "ok";
     }
     if ( $origin_status eq "" )
     {
-        $c->unauthorized("Origin not allowed");
+        return "Origin not allowed";
     }
-    my $strSQLtoken = 'SELECT * FROM tbl_api_access_token WHERE token = ? AND active_status = 1 AND date_expiration > '.time.'';
+    my $strSQLtoken = 'SELECT * FROM api_access_token WHERE token = ? AND active_status = 1 AND date_expiration > '.time.'';
     $sth = $dbh->prepare( $strSQLtoken, );
-    $sth->execute( $token ) or $c->fail( $sth->errstr );
+    $sth->execute( $token ) or return  $c->fail( $sth->errstr );
     while ( my $record = $sth->fetchrow_hashref())
     {
         $token_status = "ok";
     }
     if ( $token_status eq "" ) {
-        $c->unauthorized("token not authorized");
+        return "token not authorized";
     }
+    return 'granted';
 }
+
 1;
