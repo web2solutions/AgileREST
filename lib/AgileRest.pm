@@ -33,8 +33,8 @@ has pg => sub {
         my $self = shift;
 
         my $data_source = "juris";
-        my $user = "eduardoalmeida";
-        my $password = "fuzzy24k";
+        my $user = "xx";
+        my $password = "xx";
 
         my $pg = Mojo::Pg->new('postgresql://'.$user.':'.$password.'@localhost/'.$data_source.'');
 
