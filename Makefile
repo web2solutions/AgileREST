@@ -184,9 +184,7 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = daemon.pl \
-	hypnotoad.pl \
-	lib/.DS_Store \
+TO_INST_PM = lib/.DS_Store \
 	lib/AgileRest.pm \
 	lib/AgileRest/.DS_Store \
 	lib/AgileRest/API.pm \
@@ -223,14 +221,9 @@ TO_INST_PM = daemon.pl \
 	lib/Mail/SendEasy/Base64.pm \
 	lib/Mail/SendEasy/IOScalar.pm \
 	lib/Mail/SendEasy/SMTP.pm \
-	lib/Mail/Sendmail.pm \
-	morbo.pl
+	lib/Mail/Sendmail.pm
 
-PM_TO_BLIB = daemon.pl \
-	$(INST_LIB)/daemon.pl \
-	hypnotoad.pl \
-	$(INST_LIB)/hypnotoad.pl \
-	lib/.DS_Store \
+PM_TO_BLIB = lib/.DS_Store \
 	blib/lib/.DS_Store \
 	lib/AgileRest.pm \
 	blib/lib/AgileRest.pm \
@@ -305,9 +298,7 @@ PM_TO_BLIB = daemon.pl \
 	lib/Mail/SendEasy/SMTP.pm \
 	blib/lib/Mail/SendEasy/SMTP.pm \
 	lib/Mail/Sendmail.pm \
-	blib/lib/Mail/Sendmail.pm \
-	morbo.pl \
-	$(INST_LIB)/morbo.pl
+	blib/lib/Mail/Sendmail.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -972,7 +963,7 @@ ppd :
 	$(NOECHO) $(ECHO) '    <ABSTRACT></ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR></AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <REQUIRE VERSION="6.07" NAME="Mojolicious::" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Mojolicious::" VERSION="6.07" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-2level-5.20" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    </IMPLEMENTATION>' >> $(DISTNAME).ppd
@@ -983,8 +974,6 @@ ppd :
 
 pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', q[$(PM_FILTER)], '\''$(PERM_DIR)'\'')' -- \
-	  daemon.pl $(INST_LIB)/daemon.pl \
-	  hypnotoad.pl $(INST_LIB)/hypnotoad.pl \
 	  lib/.DS_Store blib/lib/.DS_Store \
 	  lib/AgileRest.pm blib/lib/AgileRest.pm \
 	  lib/AgileRest/.DS_Store blib/lib/AgileRest/.DS_Store \
@@ -1022,8 +1011,7 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	  lib/Mail/SendEasy/Base64.pm blib/lib/Mail/SendEasy/Base64.pm \
 	  lib/Mail/SendEasy/IOScalar.pm blib/lib/Mail/SendEasy/IOScalar.pm \
 	  lib/Mail/SendEasy/SMTP.pm blib/lib/Mail/SendEasy/SMTP.pm \
-	  lib/Mail/Sendmail.pm blib/lib/Mail/Sendmail.pm \
-	  morbo.pl $(INST_LIB)/morbo.pl 
+	  lib/Mail/Sendmail.pm blib/lib/Mail/Sendmail.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
 

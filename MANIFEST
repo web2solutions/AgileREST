@@ -1,7 +1,5 @@
 .travis.yml
 AgileREST.komodoproject
-daemon.pl
-hypnotoad.pl
 lib/AgileRest.pm
 lib/AgileRest/agile_rest.conf
 lib/AgileRest/agile_rest.production.conf
@@ -38,13 +36,13 @@ log/development.log
 log/production.log
 Makefile.PL
 MANIFEST			This list of files
-morbo.pl
-persons.sql
-processos.sql
 README.md
 script/agile_rest
 'script/agile_rest copy'
-sql.sql
+sql/persons.sql
+sql/processos.sql
+sql/sql.sql
 t/basic.t
-test
-Untitled-1.js
+utils/daemon.pl
+utils/hypnotoad.pl
+utils/morbo.pl
