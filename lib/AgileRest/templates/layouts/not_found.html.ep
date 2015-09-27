@@ -1,0 +1,6 @@
+@@ not_found.html.ep
+	 <!DOCTYPE html>
+	 <html>
+	   <head><title>Page Not Found</title></head>
+	   <body>Page does not seem to exist.</body>
+	 </html>

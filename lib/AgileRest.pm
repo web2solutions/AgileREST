@@ -10,35 +10,31 @@ use File::Basename 'dirname';
 use File::Spec::Functions 'catdir';
 
 # Every CPAN module needs a version
-#our $VERSION = '1.0';
+our $VERSION = '0.1';
 
 has dbh => sub {
-        my $self = shift;
-
-        my $data_source = "dbi:Pg:dbname=juris;host=localhost";
-        my $user = "xx";
-        my $password = "xx";
-
-        my $dbh = DBI->connect(
-            $data_source,
-            $user,
-            $password,
-            {'pg_enable_utf8' => 1, AutoCommit => 1}
-        );
-
-        return $dbh;
+    my $self = shift;
+    my $config = $self->plugin('Config');
+    my $data_source = "dbi:Pg:dbname=juris;host=localhost";
+    my $user = $config->{db_user};
+    my $password = $config->{db_password};
+    my $dbh = DBI->connect(
+        $data_source,
+        $user,
+        $password,
+        {'pg_enable_utf8' => 1, AutoCommit => 1}
+    );
+    return $dbh;
 };
 
 has pg => sub {
-        my $self = shift;
-
-        my $data_source = "juris";
-        my $user = "xx";
-        my $password = "xx";
-
-        my $pg = Mojo::Pg->new('postgresql://'.$user.':'.$password.'@localhost/'.$data_source.'');
-
-        return $pg;
+    my $self = shift;
+    my $config = $self->plugin('Config');
+    my $data_source = "juris";
+    my $user = $config->{db_user};
+    my $password = $config->{db_password};
+    my $pg = Mojo::Pg->new('postgresql://'.$user.':'.$password.'@localhost/'.$data_source.'');
+    return $pg;
 };
 
 
@@ -59,13 +55,13 @@ sub startup {
   # mv public lib/AgileRest/
   # mv templates lib/AgileRest/
   # Switch to installable home directory
-  #$app->home->parse(catdir(dirname(__FILE__), 'AgileREST'));
+  $app->home->parse(catdir(dirname(__FILE__), 'AgileREST'));
 
   # Switch to installable "public" directory
-  #$app->static->paths->[0] = $self->home->rel_dir('public');
+  $app->static->paths->[0] = $app->home->rel_dir('public');
 
   # Switch to installable "templates" directory
-  #$app->renderer->paths->[0] = $self->home->rel_dir('templates');
+  $app->renderer->paths->[0] = $app->home->rel_dir('templates');
 
 
 
