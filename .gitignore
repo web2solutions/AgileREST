@@ -1,5 +1,9 @@
 *.log
 
+AgileREST.komodoproject
+
+log/
+
 # Logs and databases #
 ######################
 *.sql
