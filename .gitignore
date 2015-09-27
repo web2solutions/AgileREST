@@ -1,15 +1,5 @@
 *.log
-
 AgileREST.komodoproject
-
 log/
-
-# Logs and databases #
-######################
 *.sql
 *.sqlite
- 
-# OS generated files #
-######################
-
-*.komodoproject
