@@ -2,6 +2,8 @@
 
  Agile build rich and powerful enterprise web applications. *** under development
 
+ [![Build Status](https://travis-ci.org/web2solutions/AgileREST.svg?branch=master)](https://travis-ci.org/web2solutions/AgileREST)
+
 ## Summary
 
  AgileREST is perfect for Software Factories.
