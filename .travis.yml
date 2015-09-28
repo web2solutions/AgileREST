@@ -6,8 +6,7 @@ perl:
 before_install:
     - cpanm Mojolicious # optional dependency
 
-install:
-    - cpanm -v --installdeps --notest --mirror http://cpan.mirrors.travis-ci.org .
+install:true
 
 #script: "perl Build.PL; ./Build test"
 # branches:
