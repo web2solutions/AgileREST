@@ -1,4 +1,5 @@
 *.log
+*.conf
 AgileREST.komodoproject
 log/
 *.sql

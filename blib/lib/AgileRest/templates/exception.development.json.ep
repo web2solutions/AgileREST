@@ -1,1 +1,0 @@
-{"status":"err","response":"Server error: <%= $exception->message %>"}
