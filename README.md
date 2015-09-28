@@ -6,9 +6,11 @@ REST interface for T-Rex web toolkit (https://github.com/web2solution/T-Rex-Spec
 
 ## Summary
 
- AgileREST is the REST interfaced used on T-Rex web stack.
+ AgileREST is the REST interface used on T-Rex web stack to provide server support for applications done using $dhx framework (https://github.com/web2solution/dhx)
 
- It provides database access and file upload through REST end points.
+ It provides standardized database access and file upload through REST end points.
+
+ It does not server static files, which is done through a CDN.
 
  All end points require HTTP authentication.
 
