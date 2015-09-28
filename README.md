@@ -17,22 +17,8 @@ REST interface for T-Rex web toolkit (https://github.com/web2solution/T-Rex-Spec
  All end points has built in documentation.
 
  
-## Technical informations
 
- * Built on top of Mojolicious framework ( http://mojolicio.us/ )
- * Fully MVC design
- * PostgreSQL 9.4 as RDBMS
- * Redis as data caching
- * Non-Blocking application
-
-## Automatically Generated Resources
-
-  * Database model
-  * Client side interfaces
-  * REST end points
-  * End points documentations
-
-## Deps
+## Dependencies
 
   - Perl Modules: 
 
