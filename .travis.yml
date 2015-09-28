@@ -4,7 +4,7 @@ perl:
 #  - "5.18"
 
 before_install:
-    - cpanm Mojolicious # optional dependency
+    - cpanm Mojolicious Mojolicious::Lite Moose Moo Mojo::Pg Mojo::JSON Mojo::JSON_XS Data::Dump Crypt::Digest::SHA256 Mojo::Log Mojo::Redis Mojo::Redis2 Mojolicious::Plugin::TtRenderer::Engine File::Basename File::Spec::Functions MIME::Base64 JSON Tie::IxHash Encode DateTime Protocol::Redis::XS DBI JSON::XS DBIx::Connector Mojolicious::Plugin::JSON::XS Mojolicious::Plugin::PDFRenderer # optional dependency
 
 install: true
 
