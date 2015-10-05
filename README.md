@@ -1,4 +1,10 @@
-# AgileREST [![Build Status](https://travis-ci.org/web2solutions/AgileREST.svg?branch=master)](https://travis-ci.org/web2solutions/AgileREST)
+# AgileREST 
+
+
+[![Build Status](https://travis-ci.org/web2solutions/AgileREST.svg?branch=master)](https://travis-ci.org/web2solutions/AgileREST)
+
+
+[![Join the chat at https://gitter.im/web2solution/T-Rex](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/web2solution/T-Rex?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 REST interface for T-Rex web toolkit (https://github.com/web2solution/T-Rex-Specs)
 
